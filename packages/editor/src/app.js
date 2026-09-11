@@ -745,11 +745,8 @@ const elVisualCanvasWrapper = document.querySelector('.visual-canvas-wrapper');
 function setVisualZoom(val) {
   visualZoom = Math.min(2.0, Math.max(0.5, Math.round(val * 100) / 100));
   if (elVisualBody) {
-    elVisualBody.style.transform = `scale(${visualZoom})`;
-    elVisualBody.style.transformOrigin = 'top center';
-    if (elVisualCanvasWrapper) {
-      elVisualCanvasWrapper.style.overflowX = visualZoom > 1.0 ? 'auto' : 'hidden';
-    }
+    // CSS zoom participates in layout, so scrolling includes the scaled paper.
+    elVisualBody.style.zoom = String(visualZoom);
   }
   if (elVisualZoomLevel) {
     elVisualZoomLevel.textContent = `${Math.round(visualZoom * 100)}%`;

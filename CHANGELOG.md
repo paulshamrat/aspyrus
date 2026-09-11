@@ -27,3 +27,9 @@ DOCX layout fidelity, canvas-only PDF preview, and unvalidated remote VS Code su
 - Respect resource-scoped Python settings and log the selected interpreter.
 - Show the actual Python startup error and automatically reveal LocalLeaf output.
 - Add a regression test for configured interpreter selection and failure reporting.
+
+## Visual canvas boundaries
+
+- Let the visual paper grow with document content instead of stretching to the viewport height.
+- Keep one scroll container beneath the preamble and use layout-aware zoom so the
+  background, border, and scroll extents stay with the full document.
