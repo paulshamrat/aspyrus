@@ -358,7 +358,7 @@ class LocalLeafHandler(SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(file_size))
-            if file_path.suffix == ".pdf":
+            if file_path.suffix in [".pdf", ".html", ".js", ".mjs", ".css"]:
                 self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
                 self.send_header("Pragma", "no-cache")
                 self.send_header("Expires", "0")

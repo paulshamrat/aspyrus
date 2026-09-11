@@ -221,13 +221,19 @@ elPreambleToggle.addEventListener('click', () => {
   }
 });
 
-// PDF.js Canvas Multi-Page Rendering (Works 100% inside VS Code Webview)
+// // PDF.js Canvas Multi-Page Rendering (Works 100% inside VS Code Webview)
 async function renderPdfViewer() {
   elPdfPagesContainer.innerHTML = '<div class="pdf-loading-msg">Rendering PDF...</div>';
   const pdfUrl = `/api/pdf?t=${Date.now()}`;
 
   try {
-    const loadingTask = pdfjsLib.getDocument(pdfUrl);
+    const res = await fetch(pdfUrl);
+    if (!res.ok) {
+      elPdfPagesContainer.innerHTML = '<div class="pdf-loading-msg">PDF not compiled yet. Click Recompile (Ctrl+S).</div>';
+      return;
+    }
+    const arrayBuffer = await res.arrayBuffer();
+    const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) });
     currentPdfDoc = await loadingTask.promise;
     elPdfPagesContainer.innerHTML = '';
 
@@ -258,12 +264,13 @@ async function renderPdfViewer() {
     }
   } catch (err) {
     console.error('PDF render error:', err);
-    elPdfPagesContainer.innerHTML = `<div class="pdf-loading-msg">Could not load PDF: ${err.message}</div>`;
+    elPdfPagesContainer.innerHTML = `<div class="pdf-loading-msg">Could not load PDF: ${escapeHtml(err.message)}</div>`;
   }
 }
 
 // Clean LaTeX to Visual Parser
 function renderLatexToVisual(fullLatex) {
+  const isBps = !fullLatex.includes('\\bpsfalse') && fullLatex.includes('\\bpstrue');
   const beginDocIdx = fullLatex.indexOf('\\begin{document}');
   let preamble = '';
   let body = fullLatex;
@@ -281,11 +288,29 @@ function renderLatexToVisual(fullLatex) {
   currentPreamble = preamble;
   elPreambleTextarea.value = preamble;
 
-  elVisualBody.innerHTML = parseLatexToCleanHtml(body.trim());
+  elVisualBody.innerHTML = parseLatexToCleanHtml(body.trim(), isBps);
 }
 
-function parseLatexToCleanHtml(latex) {
-  let lines = latex.split('\n');
+function preprocessConditionals(latex, isBps = true) {
+  let s = latex;
+  if (isBps) {
+    s = s.replace(/\\ifbps((?:(?!\\ifbps)[\s\S])*?)\\else((?:(?!\\ifbps)[\s\S])*?)\\fi/g, '$1');
+    s = s.replace(/\\ifbps\s*\\else((?:(?!\\ifbps)[\s\S])*?)\\fi/g, '');
+    s = s.replace(/\\ifbps((?:(?!\\ifbps)[\s\S])*?)\\fi/g, '$1');
+  } else {
+    s = s.replace(/\\ifbps((?:(?!\\ifbps)[\s\S])*?)\\else((?:(?!\\ifbps)[\s\S])*?)\\fi/g, '$2');
+    s = s.replace(/\\ifbps\s*\\else((?:(?!\\ifbps)[\s\S])*?)\\fi/g, '$1');
+    s = s.replace(/\\ifbps((?:(?!\\ifbps)[\s\S])*?)\\fi/g, '');
+  }
+  s = s.replace(/\\ifbps\b/g, '');
+  s = s.replace(/\\else\b/g, '');
+  s = s.replace(/\\fi\b/g, '');
+  return s;
+}
+
+function parseLatexToCleanHtml(latex, isBps = true) {
+  let preprocessed = preprocessConditionals(latex, isBps);
+  let lines = preprocessed.split('\n');
   let html = '';
   let inItemize = false;
   let inEnumerate = false;
@@ -293,51 +318,60 @@ function parseLatexToCleanHtml(latex) {
   let tableRows = [];
 
   for (let i = 0; i < lines.length; i++) {
-    let line = lines[i].trim();
+    let rawLine = lines[i];
+    let line = rawLine.trim();
 
-    // Skip comment lines entirely (hiding clutter)
-    if (!line || line.startsWith('%')) {
+    // Skip empty or pure comment lines
+    if (!line || line.startsWith('%')) continue;
+
+    // Skip document setup commands
+    if (line.startsWith('\\thispagestyle') || line.startsWith('\\setlength') || line.startsWith('\\renewcommand') || line.startsWith('\\pagestyle')) {
       continue;
     }
 
-    // Skip setup commands
-    if (line.startsWith('\\thispagestyle') || line.startsWith('\\setlength') || line.startsWith('\\renewcommand')) {
+    // Skip lines that are purely vspace or hspace
+    if (/^\\(vspace|hspace)\*?(\{[^}]*\}|\d+\w+)?$/.test(line)) {
       continue;
     }
 
     // Handle Centered Header Block
     if (line.includes('\\begin{center}')) {
       let headerBlockHtml = '<div class="cv-header-block">';
+      let name = '';
+      let address = '';
+      let contacts = [];
+      let badge = '';
+
       i++;
       while (i < lines.length && !lines[i].includes('\\end{center}')) {
         let hline = lines[i].trim();
         if (hline && !hline.startsWith('%')) {
-          // Extract Name
           let nameMatch = hline.match(/\\textbf\{([^{}]+)\}/);
           if (nameMatch && hline.includes('16pt')) {
-            headerBlockHtml += `<div class="cv-name">${escapeHtml(nameMatch[1])}</div>`;
-          } else if (hline.includes('Google Scholar') || hline.includes('E-mail') || hline.includes('GitHub')) {
-            let contacts = hline
-              .replace(/\\href\{([^}]+)\}\{([^}]+)\}/g, '<a href="$1" target="_blank">$2</a>')
-              .replace(/\\href\{([^}]+)\}/g, '<a href="$1" target="_blank">$1</a>')
-              .replace(/\\;/g, ' ')
-              .replace(/\\vert/g, ' | ')
-              .replace(/\$/g, '')
-              .replace(/\\\\.*$/, '')
-              .replace(/\{\\fontsize\{[^}]+\}\{[^}]+\}\\selectfont/g, '')
-              .replace(/\}/g, '');
-            headerBlockHtml += `<div class="cv-contacts">${contacts}</div>`;
+            name = nameMatch[1];
           } else if (hline.includes('Biophysical Society') || hline.includes('Student Member')) {
-            headerBlockHtml += `<div class="cv-tag">Biophysical Society (BPS) Student Member</div>`;
-          } else if (!hline.startsWith('\\if') && !hline.startsWith('\\fi')) {
-            let cleanLine = cleanLatexTypography(hline);
-            if (cleanLine) {
-              headerBlockHtml += `<div class="cv-address">${cleanLine}</div>`;
-            }
+            badge = 'Biophysical Society (BPS) Student Member';
+          } else if (hline.includes('Google Scholar') || hline.includes('E-mail') || hline.includes('GitHub') || hline.includes('Phone:')) {
+            let cleanedContacts = cleanLatexTypography(hline);
+            if (cleanedContacts) contacts.push(cleanedContacts);
+          } else {
+            let addr = cleanLatexTypography(hline);
+            if (addr) address = addr;
           }
         }
         i++;
       }
+
+      if (name) headerBlockHtml += `<h1 class="cv-name">${escapeHtml(name)}</h1>`;
+      if (address) headerBlockHtml += `<div class="cv-address">${address}</div>`;
+      if (contacts.length > 0) {
+        let contactText = contacts.join(' · ').replace(/(?: · )+/g, ' · ').replace(/^[·\s]+|[·\s]+$/g, '');
+        headerBlockHtml += `<div class="cv-contacts">${contactText}</div>`;
+      }
+      if (badge) {
+        headerBlockHtml += `<div class="cv-tag-container"><span class="cv-tag">${escapeHtml(badge)}</span></div>`;
+      }
+
       headerBlockHtml += '</div>';
       html += headerBlockHtml;
       continue;
@@ -348,11 +382,12 @@ function parseLatexToCleanHtml(latex) {
     if (sectionMatch) {
       if (inItemize) { html += '</ul>'; inItemize = false; }
       if (inEnumerate) { html += '</ol>'; inEnumerate = false; }
-      html += `<h2 class="cv-section-title" data-raw="${escapeHtml(line)}">${escapeHtml(sectionMatch[1])}</h2>`;
+      let secTitle = cleanLatexTypography(sectionMatch[1]);
+      html += `<h2 class="cv-section-title">${secTitle}</h2>`;
       continue;
     }
 
-    // Handle Tabular Environment
+    // Handle Tables
     if (line.includes('\\begin{tabular}')) {
       inTable = true;
       tableRows = [];
@@ -364,7 +399,7 @@ function parseLatexToCleanHtml(latex) {
       tableRows.forEach(row => {
         let cells = row.split('&');
         if (cells.length >= 2) {
-          html += `<tr><td>${cleanLatexTypography(cells[0])}</td><td>${cleanLatexTypography(cells.slice(1).join('&'))}</td></tr>`;
+          html += `<tr><td class="col-date">${cleanLatexTypography(cells[0])}</td><td class="col-desc">${cleanLatexTypography(cells.slice(1).join('&'))}</td></tr>`;
         } else {
           html += `<tr><td colspan="2">${cleanLatexTypography(row)}</td></tr>`;
         }
@@ -374,9 +409,7 @@ function parseLatexToCleanHtml(latex) {
     }
     if (inTable) {
       let rowText = line.replace(/\\\\.*$/, '').trim();
-      if (rowText && !rowText.startsWith('\\if') && !rowText.startsWith('\\fi')) {
-        tableRows.push(rowText);
-      }
+      if (rowText) tableRows.push(rowText);
       continue;
     }
 
@@ -414,7 +447,7 @@ function parseLatexToCleanHtml(latex) {
       continue;
     }
 
-    // Handle Title with Date Row: \textbf{Title} \hfill \textbf{Date}
+    // Handle Title with Date: \textbf{Title} \hfill \textbf{Date} \\
     if (line.includes('\\hfill')) {
       let parts = line.split('\\hfill');
       let titlePart = cleanLatexTypography(parts[0]);
@@ -425,8 +458,12 @@ function parseLatexToCleanHtml(latex) {
 
     // Normal formatted line
     let clean = cleanLatexTypography(line);
-    if (clean && !clean.startsWith('\\if') && !clean.startsWith('\\fi')) {
-      html += `<p class="cv-summary">${clean}</p>`;
+    if (clean) {
+      if (clean.startsWith('Utilizing the knowledge') || clean.length > 120) {
+        html += `<p class="cv-summary">${clean}</p>`;
+      } else {
+        html += `<p class="cv-subline">${clean}</p>`;
+      }
     }
   }
 
@@ -437,31 +474,61 @@ function parseLatexToCleanHtml(latex) {
 }
 
 function cleanLatexTypography(str) {
+  if (!str) return '';
   let s = str;
   // Strip font size wrappers
   s = s.replace(/\{\\fontsize\{[^}]+\}\{[^}]+\}\\selectfont\s*/g, '');
+  s = s.replace(/\\fontsize\{[^}]+\}\{[^}]+\}/g, '');
+  s = s.replace(/\\selectfont\b/g, '');
   s = s.replace(/\\par\b/g, '');
+  s = s.replace(/\\noindent\b/g, '');
   // Clean bracket spacing like [2pt], [1.5pt]
-  s = s.replace(/\[\d+(\.\d+)?pt\]/g, '');
-  // Line breaks \\
-  s = s.replace(/\\\\/g, ' ');
-  // Math dollar signs and vert
-  s = s.replace(/\$\s*\\;?\\vert\\;?\s*\$/g, ' | ');
+  s = s.replace(/\[\d+(\.\d+)?(pt|em|ex|cm|mm|in)\]/g, '');
+  // Line breaks \\ with optional bracket
+  s = s.replace(/\\\\(\[\d+(\.\d+)?(pt|em|ex|cm|mm|in)\])?/g, ' ');
+
+  // Handle superscripts like $^*$ or $^{...}$
+  s = s.replace(/\$\^\{?\*\}?\$/g, '<sup>*</sup>');
+  s = s.replace(/\$\^\{([^}]+)\}\$/g, '<sup>$1</sup>');
+
+  // Middle dot: \cdot or $\cdot$ or $\;\cdot\;$
+  s = s.replace(/\\cdot|\$\s*\\cdot\s*\$/g, ' · ');
+  // Math vert / pipes: \vert or $\vert$ or $\;\vert\;$
+  s = s.replace(/\$\s*\\;?\\vert\\;?\s*\$|\\vert/g, ' · ');
+
+  // Preserve currency $
+  s = s.replace(/\\\$/g, '___DOLLAR___');
+  // Math dollar signs
   s = s.replace(/\$/g, '');
+  s = s.replace(/___DOLLAR___/g, '$');
+
+  // Strip vspace, hspace
+  s = s.replace(/\\(vspace|hspace)\*?(\{[^}]*\}|\d+\w+)?/g, '');
+  // LaTeX logo
+  s = s.replace(/\\LaTeX\\?/g, 'LaTeX');
   // Convert \textbf{...} -> <strong>...</strong>
   s = s.replace(/\\textbf\{([^{}]+)\}/g, '<strong>$1</strong>');
   // Convert \textit{...} -> <em>...</em>
   s = s.replace(/\\textit\{([^{}]+)\}/g, '<em>$1</em>');
   // Convert \href{url}{text} -> <a href="url">text</a>
-  s = s.replace(/\\href\{([^{}]+)\}\{([^{}]+)\}/g, '<a href="$1" target="_blank">$2</a>');
-  // Escaped characters: \&, \%, \$
+  s = s.replace(/\\href\{([^}]+)\}\{([^}]+)\}/g, '<a href="$1" target="_blank">$2</a>');
+  s = s.replace(/\\href\{([^}]+)\}/g, '<a href="$1" target="_blank">$1</a>');
+  // Convert \url{url}
+  s = s.replace(/\\url\{([^}]+)\}/g, '<a href="$1" target="_blank">$1</a>');
+  // Escaped characters: \&, %, \_, \#
   s = s.replace(/\\&/g, '&amp;');
   s = s.replace(/\\%/g, '%');
+  s = s.replace(/\\_/g, '_');
+  s = s.replace(/\\#/g, '#');
   s = s.replace(/--/g, '–');
   s = s.replace(/---/g, '—');
   s = s.replace(/\\dots/g, '…');
-  s = s.replace(/\{|\}/g, ''); // strip dangling braces
-  return s.trim();
+  s = s.replace(/\\quad|\\qquad/g, ' ');
+  s = s.replace(/~+/g, ' ');
+  s = s.replace(/\{|\}/g, ''); // strip remaining dangling braces
+  s = s.replace(/\s+/g, ' ').trim();
+  s = s.replace(/^[·|•,\s]+|[·|•,\s]+$/g, '').trim();
+  return s;
 }
 
 // Serialize Visual DOM back to valid LaTeX
@@ -476,8 +543,12 @@ function serializeVisualToLatex() {
       const tag = node.tagName.toLowerCase();
 
       if (cl.contains('cv-header-block')) {
-        const name = node.querySelector('.cv-name') ? node.querySelector('.cv-name').textContent.trim() : 'Shamrat Kumar Paul';
-        const addr = node.querySelector('.cv-address') ? node.querySelector('.cv-address').textContent.trim() : '';
+        const nameEl = node.querySelector('.cv-name');
+        const name = nameEl ? nameEl.textContent.trim() : 'Shamrat Kumar Paul';
+        const addrEl = node.querySelector('.cv-address');
+        const addr = addrEl ? addrEl.textContent.trim() : '';
+        const hasBps = node.querySelector('.cv-tag') !== null;
+
         bodyLatex += `\\begin{center}\n`;
         bodyLatex += `    {\\fontsize{16pt}{18pt}\\selectfont\\textbf{${name}}} \\\\[2.5pt]\n`;
         if (addr) {
@@ -487,15 +558,21 @@ function serializeVisualToLatex() {
         bodyLatex += `        E-mail: \\href{mailto:shamrap@g.clemson.edu}{shamrap@g.clemson.edu} $\\;\\vert\\;$\n`;
         bodyLatex += `        \\href{https://scholar.google.com/citations?user=51wTjJAAAAAJ}{Google Scholar} $\\;\\vert\\;$\n`;
         bodyLatex += `        GitHub: \\href{https://github.com/paulshamrat}{https://github.com/paulshamrat/ColabMDA} $\\;\\vert\\;$\n`;
-        bodyLatex += `        Phone: (864) 624 2575\n    }\n`;
-        bodyLatex += `    \\ifbps\n        \\\\[1.5pt]\n        {\\fontsize{9.5pt}{11.5pt}\\selectfont\\textbf{Biophysical Society (BPS) Student Member}}\n    \\fi\n`;
+        bodyLatex += `        Phone: (864) 624 2575\n`;
+        bodyLatex += `    }\n`;
+        if (hasBps) {
+          bodyLatex += `    \\ifbps\n        \\\\[1.5pt]\n        {\\fontsize{9.5pt}{11.5pt}\\selectfont\\textbf{Biophysical Society (BPS) Student Member}}\n    \\fi\n`;
+        }
         bodyLatex += `\\end{center}\n\\vspace{1pt}\n\n`;
       } else if (tag === 'h2' || cl.contains('cv-section-title')) {
-        bodyLatex += `\\cvsection{${node.textContent.trim()}}\n`;
+        const secText = node.textContent.trim();
+        bodyLatex += `\\cvsection{${deformatHtmlToLatex(secText)}}\n`;
       } else if (cl.contains('cv-entry-row')) {
-        const title = node.querySelector('.cv-entry-title') ? node.querySelector('.cv-entry-title').textContent.trim() : '';
-        const date = node.querySelector('.cv-entry-date') ? node.querySelector('.cv-entry-date').textContent.trim() : '';
-        bodyLatex += `\\textbf{${title}} \\hfill \\textbf{${date}} \\\\\n`;
+        const titleEl = node.querySelector('.cv-entry-title');
+        const dateEl = node.querySelector('.cv-entry-date');
+        const title = titleEl ? deformatHtmlToLatex(titleEl.innerHTML) : '';
+        const date = dateEl ? deformatHtmlToLatex(dateEl.innerHTML) : '';
+        bodyLatex += `${title} \\hfill ${date} \\\\\n`;
       } else if (tag === 'ul') {
         bodyLatex += `\\begin{itemize}\n`;
         node.querySelectorAll('li').forEach(li => {
@@ -520,7 +597,11 @@ function serializeVisualToLatex() {
       } else if (tag === 'p') {
         const text = deformatHtmlToLatex(node.innerHTML).trim();
         if (text) {
-          bodyLatex += `${text}\n\n`;
+          if (cl.contains('cv-summary')) {
+            bodyLatex += `{\\fontsize{9.5pt}{12pt}\\selectfont\n${text}\n}\\par\n\n`;
+          } else {
+            bodyLatex += `${text} \\\\\n`;
+          }
         }
       }
     }
@@ -543,12 +624,16 @@ function deformatHtmlToLatex(html) {
   s = s.replace(/<b>(.*?)<\/b>/gi, '\\textbf{$1}');
   s = s.replace(/<em>(.*?)<\/em>/gi, '\\textit{$1}');
   s = s.replace(/<i>(.*?)<\/i>/gi, '\\textit{$1}');
+  s = s.replace(/<sup>(.*?)<\/sup>/gi, '$^{$1}$');
   s = s.replace(/<a\s+href="([^"]+)"[^>]*>(.*?)<\/a>/gi, '\\href{$1}{$2}');
   s = s.replace(/&amp;/g, '\\&');
   s = s.replace(/&lt;/g, '<');
   s = s.replace(/&gt;/g, '>');
   s = s.replace(/–/g, '--');
   s = s.replace(/—/g, '---');
+  s = s.replace(/ · /g, ' $\\cdot$ ');
+  s = s.replace(/·/g, ' $\\cdot$ ');
+  s = s.replace(/\$(\d+)/g, '\\$$1');
   return s.trim();
 }
 
