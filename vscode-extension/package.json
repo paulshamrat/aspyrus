@@ -1,0 +1,41 @@
+{
+  "name": "localleaf-visual-editor",
+  "displayName": "LocalLeaf Visual LaTeX Editor",
+  "description": "Overleaf-style Visual LaTeX Editor inside VS Code",
+  "version": "1.0.0",
+  "publisher": "localleaf",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [
+    "onLanguage:latex",
+    "onCommand:localleaf.openVisualEditor"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "localleaf.openVisualEditor",
+        "title": "Open Visual LaTeX Editor",
+        "icon": "$(preview)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "localleaf.openVisualEditor",
+          "when": "editorLangId == latex || resourceExtname == .tex",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "localleaf.openVisualEditor",
+          "when": "resourceExtname == .tex",
+          "group": "navigation"
+        }
+      ]
+    }
+  }
+}

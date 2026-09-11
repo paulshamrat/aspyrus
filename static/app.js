@@ -1,22 +1,24 @@
-// LocalLeaf - Overleaf-Style Local LaTeX Editor Client
+// LocalLeaf - Overleaf-Style Local LaTeX Editor Client (with PDF.js & Clean Visual Parser)
+
+import * as pdfjsLib from '/pdfjs/pdf.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdfjs/pdf.worker.min.mjs';
 
 let editor = null;
 let currentFileInfo = null;
 let isCompiling = false;
 let currentMode = 'visual'; // 'code' or 'visual'
 let currentPreamble = '';
+let currentPdfDoc = null;
 
 // DOM Elements
 const elActiveFilename = document.getElementById('active-filename');
 const elFileSelectorBtn = document.getElementById('file-selector-btn');
 const elBtnRecompile = document.getElementById('btn-recompile');
-const elBtnFirstCompile = document.getElementById('btn-first-compile');
 const elEngineSelect = document.getElementById('engine-select');
 const elStatusBadge = document.getElementById('status-badge');
 const elStatusText = document.getElementById('status-text');
 const elAutoCompileChk = document.getElementById('auto-compile-chk');
-const elPdfFrame = document.getElementById('pdf-frame');
-const elPdfPlaceholder = document.getElementById('pdf-placeholder');
+const elPdfPagesContainer = document.getElementById('pdf-pages-container');
 const elBtnToggleLog = document.getElementById('btn-toggle-log');
 const elBtnCloseLog = document.getElementById('btn-close-log');
 const elBtnDownloadPdf = document.getElementById('btn-download-pdf');
@@ -42,7 +44,6 @@ const elVisualContainer = document.getElementById('visual-container');
 const elVisualToolbar = document.getElementById('visual-toolbar');
 
 // Visual Editor Elements
-const elPreambleCard = document.getElementById('preamble-card');
 const elPreambleToggle = document.getElementById('preamble-toggle');
 const elPreambleArrow = document.getElementById('preamble-arrow');
 const elPreambleBody = document.getElementById('preamble-body');
@@ -62,7 +63,6 @@ const elVBtnNumber = document.getElementById('v-btn-number');
 require.config({ paths: { 'vs': '/monaco/vs' } });
 
 require(['vs/editor/editor.main'], function () {
-  // Register LaTeX language & monarch tokens for syntax highlighting
   monaco.languages.register({ id: 'latex' });
   monaco.languages.setMonarchTokensProvider('latex', {
     defaultToken: '',
@@ -103,7 +103,6 @@ require(['vs/editor/editor.main'], function () {
     renderWhitespace: 'selection'
   });
 
-  // Keybindings in Monaco
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function () {
     if (elAutoCompileChk.checked) {
       triggerCompile();
@@ -116,7 +115,6 @@ require(['vs/editor/editor.main'], function () {
     triggerCompile();
   });
 
-  // Global keybinding for Visual Mode (Ctrl+S / Ctrl+Enter)
   window.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
       e.preventDefault();
@@ -135,12 +133,11 @@ require(['vs/editor/editor.main'], function () {
   loadFile();
 });
 
-// Switch Between Code and Visual Modes (Overleaf Style)
+// Switch Between Code and Visual Modes
 function setEditorMode(mode) {
   if (currentMode === mode) return;
 
   if (mode === 'code') {
-    // Sync from Visual to Code
     const latexCode = serializeVisualToLatex();
     if (editor) {
       editor.setValue(latexCode);
@@ -152,7 +149,6 @@ function setEditorMode(mode) {
     elVisualToolbar.classList.add('disabled');
     if (editor) editor.layout();
   } else {
-    // Sync from Code to Visual
     const latexCode = editor ? editor.getValue() : '';
     renderLatexToVisual(latexCode);
     elEditorContainer.classList.add('hidden');
@@ -180,9 +176,49 @@ elPreambleToggle.addEventListener('click', () => {
   }
 });
 
-// Parse LaTeX to Visual DOM
+// PDF.js Canvas Multi-Page Rendering (Works 100% inside VS Code Webview)
+async function renderPdfViewer() {
+  elPdfPagesContainer.innerHTML = '<div class="pdf-loading-msg">Rendering PDF...</div>';
+  const pdfUrl = `/api/pdf?t=${Date.now()}`;
+
+  try {
+    const loadingTask = pdfjsLib.getDocument(pdfUrl);
+    currentPdfDoc = await loadingTask.promise;
+    elPdfPagesContainer.innerHTML = '';
+
+    const containerWidth = elPdfPagesContainer.clientWidth - 40; // padding margin
+    const targetWidth = Math.max(300, Math.min(containerWidth, 800));
+
+    for (let pageNum = 1; pageNum <= currentPdfDoc.numPages; pageNum++) {
+      const page = await currentPdfDoc.getPage(pageNum);
+      const unscaledViewport = page.getViewport({ scale: 1 });
+      const scale = targetWidth / unscaledViewport.width;
+      const viewport = page.getViewport({ scale: scale * 1.5 }); // High-DPI scale
+
+      const pageWrapper = document.createElement('div');
+      pageWrapper.className = 'pdf-page-wrapper';
+
+      const canvas = document.createElement('canvas');
+      canvas.className = 'pdf-page-canvas';
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.style.width = `${targetWidth}px`;
+      canvas.style.height = `${(viewport.height / viewport.width) * targetWidth}px`;
+
+      const ctx = canvas.getContext('2d');
+      await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+      pageWrapper.appendChild(canvas);
+      elPdfPagesContainer.appendChild(pageWrapper);
+    }
+  } catch (err) {
+    console.error('PDF render error:', err);
+    elPdfPagesContainer.innerHTML = `<div class="pdf-loading-msg">Could not load PDF: ${err.message}</div>`;
+  }
+}
+
+// Clean LaTeX to Visual Parser
 function renderLatexToVisual(fullLatex) {
-  // Split at \begin{document}
   const beginDocIdx = fullLatex.indexOf('\\begin{document}');
   let preamble = '';
   let body = fullLatex;
@@ -192,7 +228,6 @@ function renderLatexToVisual(fullLatex) {
     body = fullLatex.substring(beginDocIdx + '\\begin{document}'.length);
   }
 
-  // Strip trailing \end{document}
   const endDocIdx = body.lastIndexOf('\\end{document}');
   if (endDocIdx !== -1) {
     body = body.substring(0, endDocIdx);
@@ -201,28 +236,109 @@ function renderLatexToVisual(fullLatex) {
   currentPreamble = preamble;
   elPreambleTextarea.value = preamble;
 
-  // Convert LaTeX body into visual HTML
-  elVisualBody.innerHTML = convertLatexBodyToHtml(body.trim());
+  elVisualBody.innerHTML = parseLatexToCleanHtml(body.trim());
 }
 
-// Convert Body string to Visual HTML
-function convertLatexBodyToHtml(latex) {
-  const lines = latex.split('\n');
+function parseLatexToCleanHtml(latex) {
+  let lines = latex.split('\n');
   let html = '';
   let inItemize = false;
   let inEnumerate = false;
+  let inTable = false;
+  let tableRows = [];
 
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i].trim();
 
-    if (!line) {
+    // Skip comment lines entirely (hiding clutter)
+    if (!line || line.startsWith('%')) {
       continue;
     }
 
-    // List environments
+    // Skip setup commands
+    if (line.startsWith('\\thispagestyle') || line.startsWith('\\setlength') || line.startsWith('\\renewcommand')) {
+      continue;
+    }
+
+    // Handle Centered Header Block
+    if (line.includes('\\begin{center}')) {
+      let headerBlockHtml = '<div class="cv-header-block">';
+      i++;
+      while (i < lines.length && !lines[i].includes('\\end{center}')) {
+        let hline = lines[i].trim();
+        if (hline && !hline.startsWith('%')) {
+          // Extract Name
+          let nameMatch = hline.match(/\\textbf\{([^{}]+)\}/);
+          if (nameMatch && hline.includes('16pt')) {
+            headerBlockHtml += `<div class="cv-name">${escapeHtml(nameMatch[1])}</div>`;
+          } else if (hline.includes('Google Scholar') || hline.includes('E-mail') || hline.includes('GitHub')) {
+            let contacts = hline
+              .replace(/\\href\{([^}]+)\}\{([^}]+)\}/g, '<a href="$1" target="_blank">$2</a>')
+              .replace(/\\href\{([^}]+)\}/g, '<a href="$1" target="_blank">$1</a>')
+              .replace(/\\;/g, ' ')
+              .replace(/\\vert/g, ' | ')
+              .replace(/\$/g, '')
+              .replace(/\\\\.*$/, '')
+              .replace(/\{\\fontsize\{[^}]+\}\{[^}]+\}\\selectfont/g, '')
+              .replace(/\}/g, '');
+            headerBlockHtml += `<div class="cv-contacts">${contacts}</div>`;
+          } else if (hline.includes('Biophysical Society') || hline.includes('Student Member')) {
+            headerBlockHtml += `<div class="cv-tag">Biophysical Society (BPS) Student Member</div>`;
+          } else if (!hline.startsWith('\\if') && !hline.startsWith('\\fi')) {
+            let cleanLine = cleanLatexTypography(hline);
+            if (cleanLine) {
+              headerBlockHtml += `<div class="cv-address">${cleanLine}</div>`;
+            }
+          }
+        }
+        i++;
+      }
+      headerBlockHtml += '</div>';
+      html += headerBlockHtml;
+      continue;
+    }
+
+    // Handle Sections
+    let sectionMatch = line.match(/^\\(?:cvsection|section\*?)\{(.*?)\}/);
+    if (sectionMatch) {
+      if (inItemize) { html += '</ul>'; inItemize = false; }
+      if (inEnumerate) { html += '</ol>'; inEnumerate = false; }
+      html += `<h2 class="cv-section-title" data-raw="${escapeHtml(line)}">${escapeHtml(sectionMatch[1])}</h2>`;
+      continue;
+    }
+
+    // Handle Tabular Environment
+    if (line.includes('\\begin{tabular}')) {
+      inTable = true;
+      tableRows = [];
+      continue;
+    }
+    if (line.includes('\\end{tabular}')) {
+      inTable = false;
+      html += '<table class="cv-table">';
+      tableRows.forEach(row => {
+        let cells = row.split('&');
+        if (cells.length >= 2) {
+          html += `<tr><td>${cleanLatexTypography(cells[0])}</td><td>${cleanLatexTypography(cells.slice(1).join('&'))}</td></tr>`;
+        } else {
+          html += `<tr><td colspan="2">${cleanLatexTypography(row)}</td></tr>`;
+        }
+      });
+      html += '</table>';
+      continue;
+    }
+    if (inTable) {
+      let rowText = line.replace(/\\\\.*$/, '').trim();
+      if (rowText && !rowText.startsWith('\\if') && !rowText.startsWith('\\fi')) {
+        tableRows.push(rowText);
+      }
+      continue;
+    }
+
+    // Handle Lists
     if (line.startsWith('\\begin{itemize}')) {
       inItemize = true;
-      html += '<ul>';
+      html += '<ul class="cv-list">';
       continue;
     }
     if (line.startsWith('\\end{itemize}')) {
@@ -232,7 +348,7 @@ function convertLatexBodyToHtml(latex) {
     }
     if (line.startsWith('\\begin{enumerate}')) {
       inEnumerate = true;
-      html += '<ol>';
+      html += '<ol class="cv-list">';
       continue;
     }
     if (line.startsWith('\\end{enumerate}')) {
@@ -241,65 +357,66 @@ function convertLatexBodyToHtml(latex) {
       continue;
     }
 
-    // List items
+    // Handle List Items
     if (line.startsWith('\\item')) {
-      const itemContent = line.replace(/^\\item\s*/, '');
-      const formatted = formatInlineLatex(itemContent);
+      let itemContent = line.replace(/^\\item\s*/, '');
+      let formatted = cleanLatexTypography(itemContent);
       if (inItemize || inEnumerate) {
         html += `<li>${formatted}</li>`;
       } else {
-        html += `<ul><li>${formatted}</li></ul>`;
+        html += `<ul class="cv-list"><li>${formatted}</li></ul>`;
       }
       continue;
     }
 
-    // Headings: \cvsection{...}, \section{...}, \makerubric{...}
-    let sectionMatch = line.match(/^\\(?:cvsection|section\*?)\{(.*?)\}/);
-    if (sectionMatch) {
-      html += `<h2 class="v-section" data-raw="${escapeHtml(line)}">${escapeHtml(sectionMatch[1])}</h2>`;
+    // Handle Title with Date Row: \textbf{Title} \hfill \textbf{Date}
+    if (line.includes('\\hfill')) {
+      let parts = line.split('\\hfill');
+      let titlePart = cleanLatexTypography(parts[0]);
+      let datePart = cleanLatexTypography(parts[1]);
+      html += `<div class="cv-entry-row"><span class="cv-entry-title">${titlePart}</span><span class="cv-entry-date">${datePart}</span></div>`;
       continue;
     }
 
-    let rubricMatch = line.match(/^\\makerubric\{(.*?)\}/);
-    if (rubricMatch) {
-      html += `<h2 class="v-section" data-raw="${escapeHtml(line)}">${escapeHtml(rubricMatch[1].toUpperCase())}</h2>`;
-      continue;
+    // Normal formatted line
+    let clean = cleanLatexTypography(line);
+    if (clean && !clean.startsWith('\\if') && !clean.startsWith('\\fi')) {
+      html += `<p class="cv-summary">${clean}</p>`;
     }
-
-    let subSectionMatch = line.match(/^\\(?:cvsubsection|subsection\*?)\{(.*?)\}/);
-    if (subSectionMatch) {
-      html += `<h3 class="v-subsection" data-raw="${escapeHtml(line)}">${escapeHtml(subSectionMatch[1])}</h3>`;
-      continue;
-    }
-
-    // LaTeX Macros / Setup lines like \thispagestyle, \entry, etc.
-    if (line.startsWith('\\') && (line.includes('\\begin{center}') || line.includes('\\end{center}') || line.includes('\\if') || line.includes('\\fi') || line.includes('\\makeheaders'))) {
-      html += `<div class="latex-block-token" contenteditable="false" data-raw="${escapeHtml(line)}">${escapeHtml(line)}</div>`;
-      continue;
-    }
-
-    // Normal paragraph text
-    const formatted = formatInlineLatex(line);
-    html += `<p>${formatted}</p>`;
   }
 
-  return html || '<p>Start typing your document...</p>';
+  if (inItemize) html += '</ul>';
+  if (inEnumerate) html += '</ol>';
+
+  return html || '<p>Start typing your CV...</p>';
 }
 
-// Convert inline LaTeX tokens (\textbf, \textit, \href) to HTML tags
-function formatInlineLatex(str) {
-  let res = escapeHtml(str);
-
-  // \textbf{...} -> <b>...</b>
-  res = res.replace(/\\textbf\{([^{}]+)\}/g, '<b>$1</b>');
-  // \textit{...} -> <i>...</i>
-  res = res.replace(/\\textit\{([^{}]+)\}/g, '<i>$1</i>');
-  // \href{url}{text} -> <a href="url">text</a>
-  res = res.replace(/\\href\{([^{}]+)\}\{([^{}]+)\}/g, '<a href="$1" target="_blank">$2</a>');
-  // \\ line breaks -> <br>
-  res = res.replace(/\\\\/g, '<br>');
-
-  return res;
+function cleanLatexTypography(str) {
+  let s = str;
+  // Strip font size wrappers
+  s = s.replace(/\{\\fontsize\{[^}]+\}\{[^}]+\}\\selectfont\s*/g, '');
+  s = s.replace(/\\par\b/g, '');
+  // Clean bracket spacing like [2pt], [1.5pt]
+  s = s.replace(/\[\d+(\.\d+)?pt\]/g, '');
+  // Line breaks \\
+  s = s.replace(/\\\\/g, ' ');
+  // Math dollar signs and vert
+  s = s.replace(/\$\s*\\;?\\vert\\;?\s*\$/g, ' | ');
+  s = s.replace(/\$/g, '');
+  // Convert \textbf{...} -> <strong>...</strong>
+  s = s.replace(/\\textbf\{([^{}]+)\}/g, '<strong>$1</strong>');
+  // Convert \textit{...} -> <em>...</em>
+  s = s.replace(/\\textit\{([^{}]+)\}/g, '<em>$1</em>');
+  // Convert \href{url}{text} -> <a href="url">text</a>
+  s = s.replace(/\\href\{([^{}]+)\}\{([^{}]+)\}/g, '<a href="$1" target="_blank">$2</a>');
+  // Escaped characters: \&, \%, \$
+  s = s.replace(/\\&/g, '&amp;');
+  s = s.replace(/\\%/g, '%');
+  s = s.replace(/--/g, '–');
+  s = s.replace(/---/g, '—');
+  s = s.replace(/\\dots/g, '…');
+  s = s.replace(/\{|\}/g, ''); // strip dangling braces
+  return s.trim();
 }
 
 // Serialize Visual DOM back to valid LaTeX
@@ -310,78 +427,87 @@ function serializeVisualToLatex() {
   const nodes = elVisualBody.childNodes;
   for (let node of nodes) {
     if (node.nodeType === Node.ELEMENT_NODE) {
+      const cl = node.classList;
       const tag = node.tagName.toLowerCase();
 
-      if (tag === 'h2') {
-        const raw = node.getAttribute('data-raw');
-        const text = node.textContent.trim();
-        if (raw && raw.startsWith('\\makerubric')) {
-          bodyLatex += `${raw}\n\n`;
-        } else {
-          bodyLatex += `\\cvsection{${text}}\n`;
+      if (cl.contains('cv-header-block')) {
+        const name = node.querySelector('.cv-name') ? node.querySelector('.cv-name').textContent.trim() : 'Shamrat Kumar Paul';
+        const addr = node.querySelector('.cv-address') ? node.querySelector('.cv-address').textContent.trim() : '';
+        bodyLatex += `\\begin{center}\n`;
+        bodyLatex += `    {\\fontsize{16pt}{18pt}\\selectfont\\textbf{${name}}} \\\\[2.5pt]\n`;
+        if (addr) {
+          bodyLatex += `    {\\fontsize{9.5pt}{11.5pt}\\selectfont ${addr}} \\\\[1.5pt]\n`;
         }
-      } else if (tag === 'h3') {
-        const text = node.textContent.trim();
-        bodyLatex += `\\subsection{${text}}\n`;
+        bodyLatex += `    {\\fontsize{9.5pt}{11.5pt}\\selectfont\n`;
+        bodyLatex += `        E-mail: \\href{mailto:shamrap@g.clemson.edu}{shamrap@g.clemson.edu} $\\;\\vert\\;$\n`;
+        bodyLatex += `        \\href{https://scholar.google.com/citations?user=51wTjJAAAAAJ}{Google Scholar} $\\;\\vert\\;$\n`;
+        bodyLatex += `        GitHub: \\href{https://github.com/paulshamrat}{https://github.com/paulshamrat/ColabMDA} $\\;\\vert\\;$\n`;
+        bodyLatex += `        Phone: (864) 624 2575\n    }\n`;
+        bodyLatex += `    \\ifbps\n        \\\\[1.5pt]\n        {\\fontsize{9.5pt}{11.5pt}\\selectfont\\textbf{Biophysical Society (BPS) Student Member}}\n    \\fi\n`;
+        bodyLatex += `\\end{center}\n\\vspace{1pt}\n\n`;
+      } else if (tag === 'h2' || cl.contains('cv-section-title')) {
+        bodyLatex += `\\cvsection{${node.textContent.trim()}}\n`;
+      } else if (cl.contains('cv-entry-row')) {
+        const title = node.querySelector('.cv-entry-title') ? node.querySelector('.cv-entry-title').textContent.trim() : '';
+        const date = node.querySelector('.cv-entry-date') ? node.querySelector('.cv-entry-date').textContent.trim() : '';
+        bodyLatex += `\\textbf{${title}} \\hfill \\textbf{${date}} \\\\\n`;
       } else if (tag === 'ul') {
-        bodyLatex += '\\begin{itemize}\n';
+        bodyLatex += `\\begin{itemize}\n`;
         node.querySelectorAll('li').forEach(li => {
           bodyLatex += `    \\item ${deformatHtmlToLatex(li.innerHTML)}\n`;
         });
-        bodyLatex += '\\end{itemize}\n\n';
+        bodyLatex += `\\end{itemize}\n\n`;
       } else if (tag === 'ol') {
-        bodyLatex += '\\begin{enumerate}\n';
+        bodyLatex += `\\begin{enumerate}\n`;
         node.querySelectorAll('li').forEach(li => {
           bodyLatex += `    \\item ${deformatHtmlToLatex(li.innerHTML)}\n`;
         });
-        bodyLatex += '\\end{enumerate}\n\n';
-      } else if (node.classList.contains('latex-block-token')) {
-        const raw = node.getAttribute('data-raw') || node.textContent;
-        bodyLatex += `${raw}\n`;
+        bodyLatex += `\\end{enumerate}\n\n`;
+      } else if (tag === 'table' || cl.contains('cv-table')) {
+        bodyLatex += `\\begin{tabular}{@{}p{1.35in}@{\\quad}p{5.3in}@{}}\n`;
+        node.querySelectorAll('tr').forEach(tr => {
+          let tds = tr.querySelectorAll('td');
+          if (tds.length >= 2) {
+            bodyLatex += `\\textbf{${tds[0].textContent.trim()}} & ${deformatHtmlToLatex(tds[1].innerHTML)} \\\\\n`;
+          }
+        });
+        bodyLatex += `\\end{tabular}\n\n`;
       } else if (tag === 'p') {
         const text = deformatHtmlToLatex(node.innerHTML).trim();
         if (text) {
           bodyLatex += `${text}\n\n`;
         }
-      } else {
-        const text = deformatHtmlToLatex(node.innerHTML).trim();
-        if (text) bodyLatex += `${text}\n`;
       }
-    } else if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent.trim();
-      if (text) bodyLatex += `${text}\n`;
     }
   }
 
-  // Assemble full document
   let fullDoc = '';
   if (preamble) {
     fullDoc += preamble + '\n\n';
   }
-  fullDoc += '\\begin{document}\n\n';
+  fullDoc += '\\begin{document}\n\\thispagestyle{firstpage}\n\n';
   fullDoc += bodyLatex.trim() + '\n\n';
   fullDoc += '\\end{document}\n';
 
   return fullDoc;
 }
 
-// Convert HTML tags (<b>, <i>, <a>, <br>) back to LaTeX commands
 function deformatHtmlToLatex(html) {
   let s = html;
-  s = s.replace(/<b>(.*?)<\/b>/gi, '\\textbf{$1}');
   s = s.replace(/<strong>(.*?)<\/strong>/gi, '\\textbf{$1}');
-  s = s.replace(/<i>(.*?)<\/i>/gi, '\\textit{$1}');
+  s = s.replace(/<b>(.*?)<\/b>/gi, '\\textbf{$1}');
   s = s.replace(/<em>(.*?)<\/em>/gi, '\\textit{$1}');
+  s = s.replace(/<i>(.*?)<\/i>/gi, '\\textit{$1}');
   s = s.replace(/<a\s+href="([^"]+)"[^>]*>(.*?)<\/a>/gi, '\\href{$1}{$2}');
-  s = s.replace(/<br\s*\/?>/gi, ' \\\\\n');
-  s = s.replace(/&amp;/g, '&');
+  s = s.replace(/&amp;/g, '\\&');
   s = s.replace(/&lt;/g, '<');
   s = s.replace(/&gt;/g, '>');
-  s = s.replace(/&quot;/g, '"');
+  s = s.replace(/–/g, '--');
+  s = s.replace(/—/g, '---');
   return s.trim();
 }
 
-// Visual Toolbar Action Helpers
+// Visual Toolbar Actions
 elVBtnBold.addEventListener('click', () => {
   document.execCommand('bold', false, null);
   elVisualBody.focus();
@@ -434,14 +560,10 @@ async function loadFile() {
       editor.setValue(contentData.content);
     }
 
-    // Render into Visual Mode
     renderLatexToVisual(contentData.content);
 
     if (currentFileInfo.pdf_exists) {
-      refreshPdfViewer();
-    } else {
-      elPdfPlaceholder.classList.remove('hidden');
-      elPdfFrame.style.display = 'none';
+      await renderPdfViewer();
     }
 
     setStatus('ready', 'Ready');
@@ -451,7 +573,6 @@ async function loadFile() {
   }
 }
 
-// Get current editor content based on active mode
 function getCurrentContent() {
   if (currentMode === 'visual') {
     const latex = serializeVisualToLatex();
@@ -484,12 +605,11 @@ async function triggerCompile() {
     isCompiling = false;
     elBtnRecompile.disabled = false;
 
-    // Render raw log
     elRawLogText.textContent = data.log || 'No log output.';
 
     if (data.success) {
       setStatus('success', `Compiled in ${data.duration}`);
-      refreshPdfViewer();
+      await renderPdfViewer();
       renderIssues(data.errors, data.warnings);
 
       if (data.errors.length === 0) {
@@ -509,7 +629,6 @@ async function triggerCompile() {
   }
 }
 
-// Save content only
 async function saveContentOnly() {
   const content = getCurrentContent();
   try {
@@ -526,20 +645,11 @@ async function saveContentOnly() {
   }
 }
 
-// Refresh PDF preview
-function refreshPdfViewer() {
-  elPdfPlaceholder.classList.add('hidden');
-  elPdfFrame.style.display = 'block';
-  elPdfFrame.src = `/api/pdf?t=${Date.now()}`;
-}
-
-// Status badge helper
 function setStatus(type, text) {
   elStatusBadge.className = `status-badge ${type}`;
   elStatusText.textContent = text;
 }
 
-// Render errors and warnings
 function renderIssues(errors, warnings) {
   elErrorsList.innerHTML = '';
   const total = (errors ? errors.length : 0) + (warnings ? warnings.length : 0);
@@ -597,7 +707,6 @@ function escapeHtml(text) {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-// Log drawer tabs
 function switchLogTab(tabId) {
   document.querySelectorAll('.log-tabs .tab-btn').forEach(btn => {
     btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
@@ -621,13 +730,8 @@ elBtnCloseLog.addEventListener('click', () => {
   elLogDrawer.classList.add('collapsed');
 });
 
-// Recompile buttons
 elBtnRecompile.addEventListener('click', triggerCompile);
-if (elBtnFirstCompile) {
-  elBtnFirstCompile.addEventListener('click', triggerCompile);
-}
 
-// Download PDF button
 elBtnDownloadPdf.addEventListener('click', () => {
   const link = document.createElement('a');
   link.href = '/api/pdf';
@@ -637,7 +741,6 @@ elBtnDownloadPdf.addEventListener('click', () => {
   document.body.removeChild(link);
 });
 
-// Theme switcher
 function applyTheme(theme) {
   if (theme === 'dark') {
     document.body.classList.remove('theme-light');

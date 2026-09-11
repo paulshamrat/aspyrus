@@ -126,7 +126,7 @@
         <!-- Document Content Canvas -->
         <div class="visual-canvas-wrapper">
           <div class="visual-body" id="visual-body" contenteditable="true" spellcheck="true">
-            <!-- Visual rendered LaTeX document goes here -->
+            <!-- Clean visual rendered LaTeX document goes here -->
           </div>
         </div>
       </div>
@@ -135,22 +135,12 @@
     <!-- Resizable Splitter Handle -->
     <div class="splitter" id="splitter" title="Drag to resize"></div>
 
-    <!-- PDF Viewer Pane -->
+    <!-- PDF Viewer Pane (Rendered via PDF.js Canvas) -->
     <div class="pane pdf-pane" id="pdf-pane">
-      <div class="pdf-container">
-        <iframe id="pdf-frame" src="/api/pdf" title="PDF Preview"></iframe>
-        <div id="pdf-placeholder" class="pdf-placeholder hidden">
-          <div class="placeholder-content">
-            <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <line x1="16" y1="13" x2="8" y2="13"></line>
-              <line x1="16" y1="17" x2="8" y2="17"></line>
-              <polyline points="10 9 9 9 8 9"></polyline>
-            </svg>
-            <p>No PDF compiled yet</p>
-            <button class="btn btn-recompile" id="btn-first-compile">Compile Now</button>
-          </div>
+      <div class="pdf-container" id="pdf-container">
+        <!-- PDF.js Canvas Scrollable Viewport -->
+        <div id="pdf-pages-container" class="pdf-pages-container">
+          <div class="pdf-loading-msg" id="pdf-loading-msg">Rendering PDF preview...</div>
         </div>
       </div>
     </div>
@@ -195,8 +185,8 @@
     </div>
   </div>
 
-  <!-- Monaco Editor Scripts (Local node_modules) -->
+  <!-- PDF.js & Monaco Scripts -->
   <script src="/monaco/vs/loader.js"></script>
-  <script src="/static/app.js"></script>
+  <script type="module" src="/static/app.js"></script>
 </body>
 </html>

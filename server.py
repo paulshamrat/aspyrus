@@ -245,6 +245,10 @@ class LocalLeafHandler(SimpleHTTPRequestHandler):
             rel_path = path[len("/static/"):]
             file_path = STATIC_DIR / rel_path
             self.serve_file(file_path, head_only=head_only)
+        elif path.startswith("/pdfjs/"):
+            rel_path = path[len("/pdfjs/"):]
+            file_path = BASE_DIR / "node_modules" / "pdfjs-dist" / "build" / rel_path
+            self.serve_file(file_path, head_only=head_only)
         elif path.startswith("/monaco/"):
             rel_path = path[len("/monaco/"):]
             file_path = MONACO_DIR / rel_path
@@ -337,6 +341,7 @@ class LocalLeafHandler(SimpleHTTPRequestHandler):
                 ".html": "text/html; charset=utf-8",
                 ".css": "text/css; charset=utf-8",
                 ".js": "application/javascript; charset=utf-8",
+                ".mjs": "application/javascript; charset=utf-8",
                 ".json": "application/json; charset=utf-8",
                 ".svg": "image/svg+xml",
                 ".png": "image/png",
