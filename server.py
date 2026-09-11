@@ -301,7 +301,7 @@ class LocalLeafHandler(SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(length).decode("utf-8") if length > 0 else ""
+        body = self.rfile.read(length).decode("utf-8", errors="replace") if length > 0 else ""
         data = json.loads(body) if body else {}
 
         if path == "/api/save_content":

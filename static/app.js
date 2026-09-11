@@ -50,14 +50,30 @@ const elPreambleBody = document.getElementById('preamble-body');
 const elPreambleTextarea = document.getElementById('preamble-textarea');
 const elVisualBody = document.getElementById('visual-body');
 
-// Visual Toolbar Buttons
+// LibreOffice / Word Style Visual Toolbar Elements
 const elVBtnUndo = document.getElementById('v-btn-undo');
 const elVBtnRedo = document.getElementById('v-btn-redo');
+const elVFormatSelect = document.getElementById('v-format-select');
 const elVBtnBold = document.getElementById('v-btn-bold');
 const elVBtnItalic = document.getElementById('v-btn-italic');
-const elVBtnH2 = document.getElementById('v-btn-h2');
+const elVBtnUnderline = document.getElementById('v-btn-underline');
+const elVBtnStrike = document.getElementById('v-btn-strike');
+const elVBtnAlignLeft = document.getElementById('v-btn-align-left');
+const elVBtnAlignCenter = document.getElementById('v-btn-align-center');
+const elVBtnAlignRight = document.getElementById('v-btn-align-right');
 const elVBtnBullet = document.getElementById('v-btn-bullet');
 const elVBtnNumber = document.getElementById('v-btn-number');
+const elVBtnHr = document.getElementById('v-btn-hr');
+const elVBtnClear = document.getElementById('v-btn-clear');
+
+// PDF Zoom Toolbar Elements
+const elPdfZoomOut = document.getElementById('pdf-zoom-out');
+const elPdfZoomIn = document.getElementById('pdf-zoom-in');
+const elPdfZoomLevel = document.getElementById('pdf-zoom-level');
+const elPdfZoomFit = document.getElementById('pdf-zoom-fit');
+const elPdfZoomReset = document.getElementById('pdf-zoom-reset');
+const elPdfPageIndicator = document.getElementById('pdf-page-indicator');
+const elPdfContainer = document.getElementById('pdf-container');
 
 
 // Toggle PDF Preview Visibility (Hide / Show)
@@ -148,6 +164,12 @@ require(['vs/editor/editor.main'], function () {
     renderWhitespace: 'selection'
   });
 
+  let isWordWrapOn = true;
+  editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.KeyZ, function () {
+    isWordWrapOn = !isWordWrapOn;
+    editor.updateOptions({ wordWrap: isWordWrapOn ? 'on' : 'off' });
+  });
+
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function () {
     if (elAutoCompileChk.checked) {
       triggerCompile();
@@ -161,7 +183,11 @@ require(['vs/editor/editor.main'], function () {
   });
 
   window.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    if (e.altKey && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      isWordWrapOn = !isWordWrapOn;
+      if (editor) editor.updateOptions({ wordWrap: isWordWrapOn ? 'on' : 'off' });
+    } else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
       e.preventDefault();
       if (elAutoCompileChk.checked) {
         triggerCompile();
@@ -221,8 +247,13 @@ elPreambleToggle.addEventListener('click', () => {
   }
 });
 
-// // PDF.js Canvas Multi-Page Rendering (Works 100% inside VS Code Webview)
+// PDF Zoom State
+let pdfZoomMode = 'fit'; // 'fit' or 'manual'
+let pdfZoomScale = 1.0;
+
+// PDF.js Canvas Multi-Page Rendering (Works 100% inside VS Code Webview)
 async function renderPdfViewer() {
+  if (!elPdfPagesContainer) return;
   elPdfPagesContainer.innerHTML = '<div class="pdf-loading-msg">Rendering PDF...</div>';
   const pdfUrl = `/api/pdf?t=${Date.now()}`;
 
@@ -230,6 +261,7 @@ async function renderPdfViewer() {
     const res = await fetch(pdfUrl);
     if (!res.ok) {
       elPdfPagesContainer.innerHTML = '<div class="pdf-loading-msg">PDF not compiled yet. Click Recompile (Ctrl+S).</div>';
+      if (elPdfPageIndicator) elPdfPageIndicator.textContent = 'No PDF';
       return;
     }
     const arrayBuffer = await res.arrayBuffer();
@@ -237,8 +269,21 @@ async function renderPdfViewer() {
     currentPdfDoc = await loadingTask.promise;
     elPdfPagesContainer.innerHTML = '';
 
-    const containerWidth = elPdfPagesContainer.clientWidth - 40; // padding margin
-    const targetWidth = Math.max(300, Math.min(containerWidth, 800));
+    if (elPdfPageIndicator) {
+      elPdfPageIndicator.textContent = `${currentPdfDoc.numPages} Page${currentPdfDoc.numPages > 1 ? 's' : ''}`;
+    }
+
+    const availableWidth = Math.max(260, elPdfPagesContainer.clientWidth - 40);
+    let targetWidth;
+
+    if (pdfZoomMode === 'fit') {
+      targetWidth = Math.min(availableWidth, 850);
+      if (elPdfZoomLevel) elPdfZoomLevel.textContent = 'Fit';
+    } else {
+      const baseWidth = Math.min(availableWidth, 750);
+      targetWidth = Math.round(baseWidth * pdfZoomScale);
+      if (elPdfZoomLevel) elPdfZoomLevel.textContent = `${Math.round(pdfZoomScale * 100)}%`;
+    }
 
     for (let pageNum = 1; pageNum <= currentPdfDoc.numPages; pageNum++) {
       const page = await currentPdfDoc.getPage(pageNum);
@@ -266,6 +311,38 @@ async function renderPdfViewer() {
     console.error('PDF render error:', err);
     elPdfPagesContainer.innerHTML = `<div class="pdf-loading-msg">Could not load PDF: ${escapeHtml(err.message)}</div>`;
   }
+}
+
+function zoomPdf(delta) {
+  pdfZoomMode = 'manual';
+  pdfZoomScale = Math.max(0.4, Math.min(3.0, Math.round((pdfZoomScale + delta) * 100) / 100));
+  renderPdfViewer();
+}
+
+if (elPdfZoomIn) elPdfZoomIn.addEventListener('click', () => zoomPdf(0.15));
+if (elPdfZoomOut) elPdfZoomOut.addEventListener('click', () => zoomPdf(-0.15));
+if (elPdfZoomFit) {
+  elPdfZoomFit.addEventListener('click', () => {
+    pdfZoomMode = 'fit';
+    pdfZoomScale = 1.0;
+    renderPdfViewer();
+  });
+}
+if (elPdfZoomReset) {
+  elPdfZoomReset.addEventListener('click', () => {
+    pdfZoomMode = 'manual';
+    pdfZoomScale = 1.0;
+    renderPdfViewer();
+  });
+}
+
+if (elPdfContainer) {
+  elPdfContainer.addEventListener('wheel', (e) => {
+    if (e.ctrlKey) {
+      e.preventDefault();
+      zoomPdf(e.deltaY < 0 ? 0.1 : -0.1);
+    }
+  }, { passive: false });
 }
 
 // Clean LaTeX to Visual Parser
@@ -595,8 +672,9 @@ function serializeVisualToLatex() {
         });
         bodyLatex += `\\end{tabular}\n\n`;
       } else if (tag === 'p') {
-        const text = deformatHtmlToLatex(node.innerHTML).trim();
-        if (text) {
+        let text = deformatHtmlToLatex(node.innerHTML).trim();
+        text = text.replace(/\\(vspace|hspace)\*?(\{[^}]*\}|\d+\w+)?/g, '').trim();
+        if (text && text !== 'pt' && text !== '\\vspace1pt') {
           if (cl.contains('cv-summary')) {
             bodyLatex += `{\\fontsize{9.5pt}{12pt}\\selectfont\n${text}\n}\\par\n\n`;
           } else {
@@ -637,41 +715,113 @@ function deformatHtmlToLatex(html) {
   return s.trim();
 }
 
-// Visual Toolbar Actions
-elVBtnBold.addEventListener('click', () => {
-  document.execCommand('bold', false, null);
-  elVisualBody.focus();
-});
+// LibreOffice / Word Style Visual Toolbar Actions
+if (elVFormatSelect) {
+  elVFormatSelect.addEventListener('change', (e) => {
+    const val = e.target.value;
+    if (val === 'p') {
+      document.execCommand('formatBlock', false, '<p>');
+    } else if (val === 'h1') {
+      document.execCommand('formatBlock', false, '<h1>');
+    } else if (val === 'h2') {
+      document.execCommand('formatBlock', false, '<h2>');
+    } else if (val === 'h3') {
+      document.execCommand('formatBlock', false, '<h3>');
+    }
+    elVisualBody.focus();
+  });
+}
 
-elVBtnItalic.addEventListener('click', () => {
-  document.execCommand('italic', false, null);
-  elVisualBody.focus();
-});
+if (elVBtnBold) {
+  elVBtnBold.addEventListener('click', () => {
+    document.execCommand('bold', false, null);
+    elVisualBody.focus();
+  });
+}
 
-elVBtnUndo.addEventListener('click', () => {
-  document.execCommand('undo', false, null);
-  elVisualBody.focus();
-});
+if (elVBtnItalic) {
+  elVBtnItalic.addEventListener('click', () => {
+    document.execCommand('italic', false, null);
+    elVisualBody.focus();
+  });
+}
 
-elVBtnRedo.addEventListener('click', () => {
-  document.execCommand('redo', false, null);
-  elVisualBody.focus();
-});
+if (elVBtnUnderline) {
+  elVBtnUnderline.addEventListener('click', () => {
+    document.execCommand('underline', false, null);
+    elVisualBody.focus();
+  });
+}
 
-elVBtnBullet.addEventListener('click', () => {
-  document.execCommand('insertUnorderedList', false, null);
-  elVisualBody.focus();
-});
+if (elVBtnStrike) {
+  elVBtnStrike.addEventListener('click', () => {
+    document.execCommand('strikeThrough', false, null);
+    elVisualBody.focus();
+  });
+}
 
-elVBtnNumber.addEventListener('click', () => {
-  document.execCommand('insertOrderedList', false, null);
-  elVisualBody.focus();
-});
+if (elVBtnAlignLeft) {
+  elVBtnAlignLeft.addEventListener('click', () => {
+    document.execCommand('justifyLeft', false, null);
+    elVisualBody.focus();
+  });
+}
 
-elVBtnH2.addEventListener('click', () => {
-  document.execCommand('formatBlock', false, '<h2>');
-  elVisualBody.focus();
-});
+if (elVBtnAlignCenter) {
+  elVBtnAlignCenter.addEventListener('click', () => {
+    document.execCommand('justifyCenter', false, null);
+    elVisualBody.focus();
+  });
+}
+
+if (elVBtnAlignRight) {
+  elVBtnAlignRight.addEventListener('click', () => {
+    document.execCommand('justifyRight', false, null);
+    elVisualBody.focus();
+  });
+}
+
+if (elVBtnUndo) {
+  elVBtnUndo.addEventListener('click', () => {
+    document.execCommand('undo', false, null);
+    elVisualBody.focus();
+  });
+}
+
+if (elVBtnRedo) {
+  elVBtnRedo.addEventListener('click', () => {
+    document.execCommand('redo', false, null);
+    elVisualBody.focus();
+  });
+}
+
+if (elVBtnBullet) {
+  elVBtnBullet.addEventListener('click', () => {
+    document.execCommand('insertUnorderedList', false, null);
+    elVisualBody.focus();
+  });
+}
+
+if (elVBtnNumber) {
+  elVBtnNumber.addEventListener('click', () => {
+    document.execCommand('insertOrderedList', false, null);
+    elVisualBody.focus();
+  });
+}
+
+if (elVBtnHr) {
+  elVBtnHr.addEventListener('click', () => {
+    document.execCommand('insertHorizontalRule', false, null);
+    elVisualBody.focus();
+  });
+}
+
+if (elVBtnClear) {
+  elVBtnClear.addEventListener('click', () => {
+    document.execCommand('removeFormat', false, null);
+    elVisualBody.focus();
+  });
+}
 
 // File info and content loading
 async function loadFile() {

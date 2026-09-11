@@ -95,17 +95,37 @@
     <div class="pane editor-pane" id="editor-pane">
       <!-- Editor Header Bar with Overleaf [Code] [Visual] toggle -->
       <div class="editor-header-bar">
-        <!-- Visual Toolbar (Only active when in Visual mode) -->
+        <!-- LibreOffice / Word Style Visual Toolbar -->
         <div class="visual-toolbar" id="visual-toolbar">
           <button class="v-btn" id="v-btn-undo" title="Undo (Ctrl+Z)">↶</button>
           <button class="v-btn" id="v-btn-redo" title="Redo (Ctrl+Y)">↷</button>
           <div class="v-sep"></div>
+
+          <select id="v-format-select" class="v-select" title="Paragraph Style">
+            <option value="p">Normal Text</option>
+            <option value="h1">Title (H1)</option>
+            <option value="h2">Section Heading (H2)</option>
+            <option value="h3">Subheading (H3)</option>
+          </select>
+          <div class="v-sep"></div>
+
           <button class="v-btn font-bold" id="v-btn-bold" title="Bold (Ctrl+B)"><b>B</b></button>
           <button class="v-btn font-italic" id="v-btn-italic" title="Italic (Ctrl+I)"><i>I</i></button>
+          <button class="v-btn" id="v-btn-underline" title="Underline (Ctrl+U)"><u>U</u></button>
+          <button class="v-btn" id="v-btn-strike" title="Strikethrough"><s>S</s></button>
           <div class="v-sep"></div>
-          <button class="v-btn" id="v-btn-h2" title="Section Heading"><b>H2</b></button>
+
+          <button class="v-btn" id="v-btn-align-left" title="Align Left">⇤</button>
+          <button class="v-btn" id="v-btn-align-center" title="Align Center">≡</button>
+          <button class="v-btn" id="v-btn-align-right" title="Align Right">⇥</button>
+          <div class="v-sep"></div>
+
           <button class="v-btn" id="v-btn-bullet" title="Bullet List">• ≡</button>
           <button class="v-btn" id="v-btn-number" title="Numbered List">1. ≡</button>
+          <button class="v-btn" id="v-btn-hr" title="Insert Horizontal Rule">―</button>
+          <div class="v-sep"></div>
+
+          <button class="v-btn" id="v-btn-clear" title="Clear Formatting">T̸</button>
         </div>
 
         <!-- Overleaf Mode Switch: Code vs Visual -->
@@ -144,8 +164,25 @@
     <!-- Resizable Splitter Handle -->
     <div class="splitter" id="splitter" title="Drag to resize, double-click to collapse/expand PDF"></div>
 
-    <!-- PDF Viewer Pane (Rendered via PDF.js Canvas) -->
+    <!-- PDF Viewer Pane (Rendered via PDF.js Canvas with Zoom Toolbar) -->
     <div class="pane pdf-pane" id="pdf-pane">
+      <div class="pdf-toolbar" id="pdf-toolbar">
+        <div class="pdf-toolbar-left">
+          <button class="pdf-btn" id="pdf-zoom-out" title="Zoom Out (Ctrl -)">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </button>
+          <span class="pdf-zoom-level" id="pdf-zoom-level">100%</span>
+          <button class="pdf-btn" id="pdf-zoom-in" title="Zoom In (Ctrl +)">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </button>
+          <button class="pdf-btn pdf-btn-text" id="pdf-zoom-fit" title="Fit to Width (Ctrl 0)">Fit Width</button>
+          <button class="pdf-btn pdf-btn-text" id="pdf-zoom-reset" title="100% Scale">100%</button>
+        </div>
+        <div class="pdf-toolbar-right">
+          <span class="pdf-page-indicator" id="pdf-page-indicator">Loading PDF...</span>
+        </div>
+      </div>
+
       <div class="pdf-container" id="pdf-container">
         <!-- PDF.js Canvas Scrollable Viewport -->
         <div id="pdf-pages-container" class="pdf-pages-container">

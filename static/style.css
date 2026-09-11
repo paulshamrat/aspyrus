@@ -279,6 +279,21 @@ body {
   margin: 0 4px;
 }
 
+.v-select {
+  background: var(--bg-main);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+}
+
+.v-select:hover {
+  border-color: var(--border-light);
+}
+
 /* Overleaf Mode Toggle Capsule */
 .mode-toggle-group {
   display: inline-flex;
@@ -590,11 +605,70 @@ body {
   min-width: 250px;
   background-color: #2b2b2b;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-toolbar {
+  height: 36px;
+  background: var(--bg-subnav);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  user-select: none;
+  z-index: 5;
+  flex-shrink: 0;
+}
+
+.pdf-toolbar-left, .pdf-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pdf-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--text-main);
+  padding: 3px 6px;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.pdf-btn:hover {
+  background: var(--badge-bg);
+  border-color: var(--border-light);
+}
+
+.pdf-btn-text {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 8px;
+}
+
+.pdf-zoom-level {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-main);
+  min-width: 42px;
+  text-align: center;
+}
+
+.pdf-page-indicator {
+  font-size: 11.5px;
+  color: var(--text-muted);
 }
 
 .pdf-container {
+  flex: 1;
   width: 100%;
-  height: 100%;
   overflow-y: auto;
   position: relative;
 }
