@@ -885,3 +885,24 @@ body {
   font-size: 11px;
   color: var(--text-muted);
 }
+
+/* Hide PDF Preview Mode (Full-Width Editor) */
+.workspace.hide-pdf .pdf-pane,
+.workspace.hide-pdf .splitter {
+  display: none !important;
+}
+
+.workspace.hide-pdf .editor-pane {
+  flex: 1 1 100% !important;
+  max-width: 100% !important;
+}
+
+.workspace.hide-pdf .visual-body {
+  max-width: 880px;
+}
+
+.btn-toggle-pdf.active {
+  background: var(--badge-bg);
+  color: var(--accent-blue);
+  border-color: var(--accent-blue);
+}

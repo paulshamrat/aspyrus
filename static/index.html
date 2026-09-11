@@ -51,6 +51,15 @@
     </div>
 
     <div class="nav-right">
+      <!-- Toggle Side PDF Preview Button -->
+      <button class="btn btn-icon btn-toggle-pdf" id="btn-toggle-pdf" title="Toggle PDF Preview (Alt+P or double-click divider)">
+        <svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="15" y1="3" x2="15" y2="21"></line>
+        </svg>
+        <span id="btn-toggle-pdf-text">Hide PDF</span>
+      </button>
+
       <label class="checkbox-label" title="Auto-compile every time you save with Ctrl+S">
         <input type="checkbox" id="auto-compile-chk" checked>
         <span>Auto-compile</span>
@@ -133,7 +142,7 @@
     </div>
 
     <!-- Resizable Splitter Handle -->
-    <div class="splitter" id="splitter" title="Drag to resize"></div>
+    <div class="splitter" id="splitter" title="Drag to resize, double-click to collapse/expand PDF"></div>
 
     <!-- PDF Viewer Pane (Rendered via PDF.js Canvas) -->
     <div class="pane pdf-pane" id="pdf-pane">

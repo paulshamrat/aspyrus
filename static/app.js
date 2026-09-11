@@ -59,6 +59,51 @@ const elVBtnH2 = document.getElementById('v-btn-h2');
 const elVBtnBullet = document.getElementById('v-btn-bullet');
 const elVBtnNumber = document.getElementById('v-btn-number');
 
+
+// Toggle PDF Preview Visibility (Hide / Show)
+const elBtnTogglePdf = document.getElementById('btn-toggle-pdf');
+const elBtnTogglePdfText = document.getElementById('btn-toggle-pdf-text');
+const elWorkspace = document.getElementById('workspace');
+
+let isPdfHidden = localStorage.getItem('localleaf-hide-pdf') === 'true';
+
+function updatePdfVisibility(hide) {
+  isPdfHidden = hide;
+  if (isPdfHidden) {
+    elWorkspace.classList.add('hide-pdf');
+    elBtnTogglePdfText.textContent = 'Show PDF';
+    elBtnTogglePdf.classList.add('active');
+  } else {
+    elWorkspace.classList.remove('hide-pdf');
+    elBtnTogglePdfText.textContent = 'Hide PDF';
+    elBtnTogglePdf.classList.remove('active');
+    if (currentPdfDoc) {
+      renderPdfViewer();
+    }
+  }
+  localStorage.setItem('localleaf-hide-pdf', isPdfHidden);
+  if (editor) editor.layout();
+}
+
+if (isPdfHidden) {
+  updatePdfVisibility(true);
+}
+
+elBtnTogglePdf.addEventListener('click', () => {
+  updatePdfVisibility(!isPdfHidden);
+});
+
+elSplitter.addEventListener('dblclick', () => {
+  updatePdfVisibility(!isPdfHidden);
+});
+
+window.addEventListener('keydown', (e) => {
+  if (e.altKey && e.key.toLowerCase() === 'p') {
+    e.preventDefault();
+    updatePdfVisibility(!isPdfHidden);
+  }
+});
+
 // Setup Monaco AMD loader
 require.config({ paths: { 'vs': '/monaco/vs' } });
 
