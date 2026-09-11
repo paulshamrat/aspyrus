@@ -17,6 +17,8 @@ from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 from pathlib import Path
 
+from docx_exporter import export_latex_to_docx
+
 # Defaults
 DEFAULT_PORT = 4848
 BASE_DIR = Path(__file__).resolve().parent
@@ -64,6 +66,7 @@ class LocalLeafState:
 
         self.output_pdf = self.output_dir / f"{self.target_file.stem}.pdf"
         self.output_log = self.output_dir / f"{self.target_file.stem}.log"
+        self.output_docx = self.output_dir / f"{self.target_file.stem}.docx"
 
     def get_info(self):
         with self.lock:
@@ -73,11 +76,36 @@ class LocalLeafState:
                 "file_dir": str(self.target_file.parent),
                 "output_dir": str(self.output_dir),
                 "output_pdf": str(self.output_pdf),
+                "output_docx": str(self.output_docx),
                 "pdf_exists": self.output_pdf.exists(),
+                "docx_exists": self.output_docx.exists(),
                 "file_exists": self.target_file.exists(),
                 "mtime": self.target_file.stat().st_mtime if self.target_file.exists() else 0,
                 "recent_files": self.recent_files[:10]
             }
+
+    def export_docx(self, line_spacing=1.15, space_after_pt=2.0):
+        with self.lock:
+            if not self.target_file.exists():
+                return {"success": False, "error": f"File not found: {self.target_file}"}
+            try:
+                ok, msg = export_latex_to_docx(
+                    self.target_file,
+                    out_docx_path=self.output_docx,
+                    build_dir=self.output_dir,
+                    line_spacing=line_spacing,
+                    space_after_pt=space_after_pt,
+                )
+                size = self.output_docx.stat().st_size if self.output_docx.exists() else 0
+                return {
+                    "success": ok,
+                    "message": msg,
+                    "output_docx": str(self.output_docx),
+                    "file_name": self.output_docx.name,
+                    "size_bytes": size
+                }
+            except Exception as e:
+                return {"success": False, "error": str(e)}
 
     def read_content(self):
         with self.lock:
@@ -270,6 +298,15 @@ class LocalLeafHandler(SimpleHTTPRequestHandler):
                 self.end_headers()
                 if not head_only:
                     self.wfile.write(b"PDF has not been compiled yet.")
+        elif path == "/api/docx":
+            if state.output_docx.exists():
+                self.serve_file(state.output_docx, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", head_only=head_only)
+            else:
+                self.send_response(404)
+                self.send_header("Content-Type", "text/plain")
+                self.end_headers()
+                if not head_only:
+                    self.wfile.write(b"DOCX has not been compiled yet.")
         elif path == "/api/log":
             if state.output_log.exists():
                 self.serve_file(state.output_log, "text/plain; charset=utf-8", head_only=head_only)
@@ -317,6 +354,21 @@ class LocalLeafHandler(SimpleHTTPRequestHandler):
             res = state.compile(engine=engine)
             self.send_json(res)
 
+        elif path == "/api/export_docx":
+            content = data.get("content", None)
+            if content is not None:
+                state.write_content(content)
+            try:
+                line_spacing = float(data.get("line_spacing", 1.15))
+            except Exception:
+                line_spacing = 1.15
+            try:
+                space_after_pt = float(data.get("space_after_pt", 2.0))
+            except Exception:
+                space_after_pt = 2.0
+            res = state.export_docx(line_spacing=line_spacing, space_after_pt=space_after_pt)
+            self.send_json(res)
+
         elif path == "/api/switch_file":
             new_file = data.get("file_path", "")
             if new_file and os.path.exists(new_file):
@@ -346,6 +398,7 @@ class LocalLeafHandler(SimpleHTTPRequestHandler):
                 ".svg": "image/svg+xml",
                 ".png": "image/png",
                 ".pdf": "application/pdf",
+                ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 ".txt": "text/plain; charset=utf-8",
                 ".ttf": "font/ttf",
                 ".woff": "font/woff",

@@ -72,6 +72,16 @@ const elVBtnHr = document.getElementById('v-btn-hr');
 const elVBtnLink = document.getElementById('v-btn-link');
 const elVBtnInsertEntry = document.getElementById('v-btn-insert-entry');
 const elVBtnClear = document.getElementById('v-btn-clear');
+const elVSizeSelect = document.getElementById('v-size-select');
+const elVSpacingSelect = document.getElementById('v-spacing-select');
+const elVPointsSelect = document.getElementById('v-points-select');
+
+// DOCX Export Buttons
+const elBtnExportDocx = document.getElementById('btn-export-docx');
+const elBtnDownloadDocx = document.getElementById('btn-download-docx');
+
+// Dismiss Logs
+const elBtnDismissLogs = document.getElementById('btn-dismiss-logs');
 
 // PDF Zoom Toolbar Elements
 const elPdfZoomOut = document.getElementById('pdf-zoom-out');
@@ -204,6 +214,12 @@ require(['vs/editor/editor.main'], function () {
     } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
       triggerCompile();
+    } else if (e.key === 'Escape') {
+      dismissLogDrawer();
+      if (elFileModal && !elFileModal.classList.contains('hidden')) {
+        elFileModal.classList.add('hidden');
+      }
+      document.querySelectorAll('.menu-item.open').forEach(m => m.classList.remove('open'));
     }
   });
 
@@ -825,10 +841,15 @@ function serializeVisualToLatex() {
         text = text.replace(/\\(vspace|hspace)\*?(\{[^}]*\}|\d+\w+)?/g, '').trim();
         if (text && text !== 'pt' && text !== '\\vspace1pt') {
           if (cl.contains('cv-summary') || text.length > 150) {
-            bodyLatex += `{\\fontsize{9.5pt}{12pt}\\selectfont\n${text}\n}\\par\n\n`;
+            bodyLatex += `{\\fontsize{9.5pt}{12pt}\\selectfont\n${text}\n}\\par\n`;
           } else {
             bodyLatex += `${text} \\\\\n`;
           }
+          const vspace = node.dataset.vspace || (node.style.marginBottom && node.style.marginBottom !== '0px' ? node.style.marginBottom : '');
+          if (vspace) {
+            bodyLatex += `\\vspace{${vspace}}\n`;
+          }
+          bodyLatex += '\n';
         }
       }
     }
@@ -860,6 +881,7 @@ function deformatHtmlToLatex(html) {
   s = s.replace(/<a\s+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, '\\href{$1}{$2}');
   s = s.replace(/<br\s*\/?>/gi, ' \\\\\n');
   s = s.replace(/&amp;/g, '\\&');
+  s = s.replace(/(^|[^\\])&/g, '$1\\&');
   s = s.replace(/&lt;/g, '<');
   s = s.replace(/&gt;/g, '>');
   s = s.replace(/&nbsp;/g, ' ');
@@ -1043,6 +1065,69 @@ if (elVBtnClear) {
   elVBtnClear.addEventListener('click', () => {
     document.execCommand('removeFormat', false, null);
     elVisualBody.focus();
+  });
+}
+
+function getActiveVisualBlock() {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return null;
+  let node = sel.anchorNode;
+  if (!node) return null;
+  if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+  if (!elVisualBody || !elVisualBody.contains(node)) return null;
+  let block = node;
+  while (block && block !== elVisualBody && !['P', 'H1', 'H2', 'H3', 'H4', 'LI', 'TR', 'DIV', 'TABLE'].includes(block.tagName)) {
+    block = block.parentElement;
+  }
+  return block || node;
+}
+
+function applyLineSpacing(val) {
+  const block = getActiveVisualBlock();
+  if (block && block !== elVisualBody) {
+    block.style.lineHeight = val;
+  } else if (elVisualBody) {
+    elVisualBody.style.lineHeight = val;
+  }
+  if (elVisualBody) elVisualBody.focus();
+}
+
+function applySpacingPoints(val) {
+  const block = getActiveVisualBlock();
+  if (block && block !== elVisualBody) {
+    block.style.marginBottom = val;
+    block.dataset.vspace = val;
+  }
+  if (elVisualBody) elVisualBody.focus();
+}
+
+if (elVSizeSelect) {
+  elVSizeSelect.addEventListener('change', (e) => {
+    const size = e.target.value;
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount && !sel.isCollapsed) {
+      const range = sel.getRangeAt(0);
+      const span = document.createElement('span');
+      span.style.fontSize = size;
+      span.appendChild(range.extractContents());
+      range.insertNode(span);
+    } else {
+      const block = getActiveVisualBlock();
+      if (block) block.style.fontSize = size;
+    }
+    if (elVisualBody) elVisualBody.focus();
+  });
+}
+
+if (elVSpacingSelect) {
+  elVSpacingSelect.addEventListener('change', (e) => {
+    applyLineSpacing(e.target.value);
+  });
+}
+
+if (elVPointsSelect) {
+  elVPointsSelect.addEventListener('change', (e) => {
+    applySpacingPoints(e.target.value);
   });
 }
 
@@ -1273,13 +1358,27 @@ elBtnToggleLog.addEventListener('click', (e) => {
   }
 });
 
-elBtnCloseLog.addEventListener('click', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
+function dismissLogDrawer() {
   elLogDrawer.classList.add('collapsed');
   elLogDrawer.style.display = 'none';
   userDismissedLogs = true;
-});
+}
+
+if (elBtnCloseLog) {
+  elBtnCloseLog.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dismissLogDrawer();
+  });
+}
+
+if (elBtnDismissLogs) {
+  elBtnDismissLogs.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dismissLogDrawer();
+  });
+}
 
 elBtnRecompile.addEventListener('click', () => {
   userDismissedLogs = false;
@@ -1293,6 +1392,172 @@ elBtnDownloadPdf.addEventListener('click', () => {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+});
+
+async function exportDocx() {
+  setStatus('compiling', 'Exporting DOCX...');
+  const content = getCurrentContent();
+  const lineSpacing = elVSpacingSelect ? parseFloat(elVSpacingSelect.value) : 1.15;
+  const pointsVal = elVPointsSelect ? parseFloat(elVPointsSelect.value) : 2.0;
+
+  try {
+    const res = await fetch('/api/export_docx', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: content,
+        line_spacing: lineSpacing,
+        space_after_pt: pointsVal
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      const sizeKb = (data.size_bytes / 1024).toFixed(1);
+      setStatus('success', `Exported DOCX (${sizeKb} KB)`);
+      const link = document.createElement('a');
+      link.href = '/api/docx?t=' + Date.now();
+      link.download = data.file_name || 'document.docx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      setStatus('error', 'DOCX export failed');
+      alert('DOCX Export error: ' + (data.error || data.message));
+    }
+  } catch (err) {
+    console.error('Failed to export DOCX:', err);
+    setStatus('error', 'DOCX export failed');
+  }
+}
+
+if (elBtnExportDocx) {
+  elBtnExportDocx.addEventListener('click', () => exportDocx());
+}
+
+if (elBtnDownloadDocx) {
+  elBtnDownloadDocx.addEventListener('click', () => {
+    const link = document.createElement('a');
+    link.href = '/api/docx?t=' + Date.now();
+    link.download = currentFileInfo ? currentFileInfo.file_name.replace(/\.tex$/, '.docx') : 'document.docx';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  });
+}
+
+// LibreOffice Style Menubar Interactions
+document.querySelectorAll('.menu-item').forEach(item => {
+  item.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const wasOpen = item.classList.contains('open');
+    document.querySelectorAll('.menu-item.open').forEach(m => m.classList.remove('open'));
+    if (!wasOpen) {
+      item.classList.add('open');
+    }
+  });
+
+  item.addEventListener('mouseenter', () => {
+    const anyOpen = document.querySelector('.menu-item.open');
+    if (anyOpen && anyOpen !== item) {
+      anyOpen.classList.remove('open');
+      item.classList.add('open');
+    }
+  });
+});
+
+document.addEventListener('click', () => {
+  document.querySelectorAll('.menu-item.open').forEach(m => m.classList.remove('open'));
+});
+
+const bindMenuClick = (id, fn) => {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.menu-item.open').forEach(m => m.classList.remove('open'));
+      fn();
+    });
+  }
+};
+
+bindMenuClick('m-save', () => {
+  if (elAutoCompileChk && elAutoCompileChk.checked) triggerCompile();
+  else saveContentOnly();
+});
+bindMenuClick('m-recompile', () => triggerCompile());
+bindMenuClick('m-switch-file', () => elFileSelectorBtn.click());
+bindMenuClick('m-export-pdf', () => elBtnDownloadPdf.click());
+bindMenuClick('m-export-docx', () => exportDocx());
+
+bindMenuClick('m-undo', () => { document.execCommand('undo', false, null); if (elVisualBody) elVisualBody.focus(); });
+bindMenuClick('m-redo', () => { document.execCommand('redo', false, null); if (elVisualBody) elVisualBody.focus(); });
+bindMenuClick('m-select-all', () => { document.execCommand('selectAll', false, null); });
+bindMenuClick('m-clear-format', () => { document.execCommand('removeFormat', false, null); if (elVisualBody) elVisualBody.focus(); });
+
+bindMenuClick('m-view-visual', () => setEditorMode('visual'));
+bindMenuClick('m-view-code', () => setEditorMode('code'));
+bindMenuClick('m-view-toggle-pdf', () => updatePdfVisibility(!isPdfHidden));
+bindMenuClick('m-view-toggle-log', () => elBtnToggleLog.click());
+bindMenuClick('m-view-zoom-in', () => elPdfZoomIn.click());
+bindMenuClick('m-view-zoom-out', () => elPdfZoomOut.click());
+bindMenuClick('m-view-zoom-reset', () => elPdfZoomReset.click());
+
+bindMenuClick('m-ins-entry', () => elVBtnInsertEntry.click());
+bindMenuClick('m-ins-table', () => {
+  const tableHtml = `<table class="cv-table"><tr><td class="col-date">2024 – Present</td><td class="col-desc"><strong>Title / Position</strong>, Institution, City, Country</td></tr></table><p></p>`;
+  document.execCommand('insertHTML', false, tableHtml);
+  if (elVisualBody) elVisualBody.focus();
+});
+bindMenuClick('m-ins-bullet', () => elVBtnBullet.click());
+bindMenuClick('m-ins-number', () => elVBtnNumber.click());
+bindMenuClick('m-ins-hr', () => elVBtnHr.click());
+bindMenuClick('m-ins-link', () => elVBtnLink.click());
+
+bindMenuClick('m-fmt-bold', () => elVBtnBold.click());
+bindMenuClick('m-fmt-italic', () => elVBtnItalic.click());
+bindMenuClick('m-fmt-underline', () => elVBtnUnderline.click());
+bindMenuClick('m-fmt-strike', () => elVBtnStrike.click());
+bindMenuClick('m-fmt-sup', () => elVBtnSup.click());
+bindMenuClick('m-fmt-sub', () => elVBtnSub.click());
+
+document.querySelectorAll('[data-action="insert-vspace"]').forEach(el => {
+  el.addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.querySelectorAll('.menu-item.open').forEach(m => m.classList.remove('open'));
+    const val = el.getAttribute('data-val');
+    applySpacingPoints(val);
+    if (elVPointsSelect) elVPointsSelect.value = val;
+  });
+});
+
+document.querySelectorAll('.sym-btn').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.querySelectorAll('.menu-item.open').forEach(m => m.classList.remove('open'));
+    const sym = btn.getAttribute('data-sym') || btn.textContent.trim();
+    document.execCommand('insertText', false, sym);
+    if (elVisualBody) elVisualBody.focus();
+  });
+});
+
+document.querySelectorAll('[data-action="set-line-spacing"]').forEach(el => {
+  el.addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.querySelectorAll('.menu-item.open').forEach(m => m.classList.remove('open'));
+    const val = el.getAttribute('data-val');
+    applyLineSpacing(val);
+    if (elVSpacingSelect) elVSpacingSelect.value = val;
+  });
+});
+
+document.querySelectorAll('[data-action="set-points"]').forEach(el => {
+  el.addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.querySelectorAll('.menu-item.open').forEach(m => m.classList.remove('open'));
+    const val = el.getAttribute('data-val');
+    applySpacingPoints(val);
+    if (elVPointsSelect) elVPointsSelect.value = val;
+  });
 });
 
 function applyTheme(theme) {

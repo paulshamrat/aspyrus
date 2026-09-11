@@ -140,6 +140,127 @@ body {
   background-color: var(--accent-green-hover);
 }
 
+.btn-docx {
+  background-color: #2b579a;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.btn-docx:hover {
+  background-color: #1e3f73;
+}
+
+/* LibreOffice Writer Style Menubar */
+.menubar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background-color: var(--bg-subnav);
+  border-bottom: 1px solid var(--border-color);
+  padding: 2px 12px;
+  font-size: 13px;
+  user-select: none;
+  position: relative;
+  z-index: 50;
+}
+
+.menu-item {
+  position: relative;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-main);
+  transition: background 0.15s ease;
+}
+
+.menu-item:hover, .menu-item.open {
+  background-color: var(--badge-bg);
+}
+
+.menu-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 230px;
+  background-color: var(--drawer-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+  padding: 4px 0;
+  z-index: 200;
+}
+
+.menu-item.open .menu-dropdown {
+  display: block;
+}
+
+.menu-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.menu-entry:hover {
+  background-color: var(--accent-blue);
+  color: #ffffff;
+}
+
+.menu-entry span {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 12px;
+}
+
+.menu-entry:hover span {
+  color: #e2e8f0;
+}
+
+.menu-divider {
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 4px 0;
+}
+
+.menu-submenu-title {
+  padding: 4px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.menu-symbols-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 3px;
+  padding: 4px 10px 8px 10px;
+}
+
+.sym-btn {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.sym-btn:hover {
+  background: var(--accent-blue);
+  color: #fff;
+  border-color: var(--accent-blue);
+}
+
 .btn-icon {
   background: transparent;
   color: var(--text-muted);
@@ -804,6 +925,32 @@ body {
   border-radius: 10px;
   font-size: 11px;
   margin-left: 4px;
+}
+
+.log-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-dismiss-logs {
+  background: rgba(229, 62, 62, 0.15);
+  border: 1px solid var(--accent-red);
+  color: #ff9999;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-dismiss-logs:hover {
+  background: var(--accent-red);
+  color: #ffffff;
 }
 
 .btn-close {
