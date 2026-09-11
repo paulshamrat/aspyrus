@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>LocalLeaf</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header>
+      <strong>🍃 LocalLeaf <small>0.1 alpha</small></strong
+      ><span id="filename">Loading…</span><button id="open">Open .tex</button
+      ><button id="reload">Reload</button><button id="save">Save</button
+      ><span id="status" role="status">Starting…</span>
+    </header>
+    <nav aria-label="Editor controls">
+      <button id="visual-mode" aria-pressed="true">Visual</button
+      ><button id="code-mode" aria-pressed="false">Code</button
+      ><button id="pdf-toggle" aria-pressed="true">PDF</button><span class="spacer"></span
+      ><select id="engine" aria-label="LaTeX engine">
+        <option>pdflatex</option>
+        <option>xelatex</option>
+        <option>lualatex</option></select
+      ><button id="compile">Compile PDF</button
+      ><button id="download-pdf" disabled title="Download the last successfully compiled PDF">
+        Download PDF</button
+      ><button id="docx">Export DOCX</button>
+    </nav>
+    <div id="format">
+      <button data-format="bold"><b>Bold</b></button
+      ><button data-format="italic"><i>Italic</i></button
+      ><button data-format="underline"><u>Underline</u></button
+      ><button id="visual-out" aria-label="Zoom visual out">−</button
+      ><span id="visual-zoom">100%</span
+      ><button id="visual-in" aria-label="Zoom visual in">+</button
+      ><span
+        >Text and basic headings are editable. Complex LaTeX is preserved in source blocks.</span
+      >
+    </div>
+    <main>
+      <section id="editing" aria-label="Document editor">
+        <div id="visual"></div>
+        <div id="code" hidden></div>
+      </section>
+      <section id="preview" aria-label="PDF preview">
+        <div class="pdf-tools">
+          <button id="pdf-out" aria-label="Zoom PDF out">−</button><span id="pdf-zoom">100%</span
+          ><button id="pdf-in" aria-label="Zoom PDF in">+</button>
+        </div>
+        <div id="pages">Compile to preview your PDF.</div>
+      </section>
+    </main>
+    <details id="diagnostics">
+      <summary>Build and export messages</summary>
+      <pre id="log"></pre>
+    </details>
+    <link rel="stylesheet" href="/src/app.css" />
+    <script type="module" src="/src/app.js"></script>
+  </body>
+</html>

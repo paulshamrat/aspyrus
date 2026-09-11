@@ -1,1 +1,0 @@
-agy --conversation=dd7f9c3f-028a-4bb6-a381-e90d384f937c --dangerously-skip-permissions

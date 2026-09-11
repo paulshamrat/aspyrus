@@ -22,7 +22,6 @@ Supports two complementary generation engines:
 
 from __future__ import annotations
 
-import os
 import re
 import xml.etree.ElementTree as ET
 import zipfile
@@ -38,21 +37,66 @@ from docx.shared import Inches, Pt, RGBColor
 NS_W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 ET.register_namespace("w", NS_W)
 
-SUPERSCRIPT_MAP = str.maketrans({
-    "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴",
-    "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹",
-    "+": "⁺", "-": "⁻", "=": "⁼", "(": "⁽", ")": "⁾",
-    "n": "ⁿ", "i": "ⁱ", "K": "ᴷ", "*": "∗"
-})
+SUPERSCRIPT_MAP = str.maketrans(
+    {
+        "0": "⁰",
+        "1": "¹",
+        "2": "²",
+        "3": "³",
+        "4": "⁴",
+        "5": "⁵",
+        "6": "⁶",
+        "7": "⁷",
+        "8": "⁸",
+        "9": "⁹",
+        "+": "⁺",
+        "-": "⁻",
+        "=": "⁼",
+        "(": "⁽",
+        ")": "⁾",
+        "n": "ⁿ",
+        "i": "ⁱ",
+        "K": "ᴷ",
+        "*": "∗",
+    }
+)
 
-SUBSCRIPT_MAP = str.maketrans({
-    "0": "₀", "1": "₁", "2": "₂", "3": "₃", "4": "₄",
-    "5": "₅", "6": "₆", "7": "₇", "8": "₈", "9": "₉",
-    "+": "₊", "-": "₋", "=": "₌", "(": "₍", ")": "₎",
-    "a": "ₐ", "e": "ₑ", "h": "ₕ", "i": "ᵢ", "j": "ⱼ",
-    "k": "ₖ", "l": "ₗ", "m": "ₘ", "n": "ₙ", "o": "ₒ",
-    "p": "ₚ", "r": "ᵣ", "s": "ₛ", "t": "ₜ", "u": "ᵤ", "v": "ᵥ", "x": "ₓ"
-})
+SUBSCRIPT_MAP = str.maketrans(
+    {
+        "0": "₀",
+        "1": "₁",
+        "2": "₂",
+        "3": "₃",
+        "4": "₄",
+        "5": "₅",
+        "6": "₆",
+        "7": "₇",
+        "8": "₈",
+        "9": "₉",
+        "+": "₊",
+        "-": "₋",
+        "=": "₌",
+        "(": "₍",
+        ")": "₎",
+        "a": "ₐ",
+        "e": "ₑ",
+        "h": "ₕ",
+        "i": "ᵢ",
+        "j": "ⱼ",
+        "k": "ₖ",
+        "l": "ₗ",
+        "m": "ₘ",
+        "n": "ₙ",
+        "o": "ₒ",
+        "p": "ₚ",
+        "r": "ᵣ",
+        "s": "ₛ",
+        "t": "ₜ",
+        "u": "ᵤ",
+        "v": "ᵥ",
+        "x": "ₓ",
+    }
+)
 
 
 def _translate_superscript(content: str) -> str:
@@ -73,7 +117,7 @@ def parse_brace_block(source: str, start_idx: int) -> tuple[str | None, int]:
         elif char == "}":
             depth -= 1
             if depth == 0:
-                return source[start_idx + 1:idx], idx + 1
+                return source[start_idx + 1 : idx], idx + 1
         idx += 1
     return None, start_idx
 
@@ -101,7 +145,7 @@ def unwrap_fontsize(text: str) -> str:
         end_pos = m.end()
         content, next_idx = parse_brace_block(text, start_pos)
         if content is not None:
-            inner = content[len(m.group(0)) - 1:]
+            inner = content[len(m.group(0)) - 1 :]
             text = text[:start_pos] + inner + text[next_idx:]
         else:
             text = text[:start_pos] + text[end_pos:]
@@ -113,12 +157,12 @@ def add_xml_field(paragraph, text_before: str, field_str: str, text_after: str =
     r_before.font.name = "Times New Roman"
     r_before.font.size = Pt(8.5)
     r_before.font.color.rgb = RGBColor(110, 110, 110)
-    
+
     fldSimple = parse_xml(
         f'<w:fldSimple xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" w:instr="{field_str}"/>'
     )
     paragraph._p.append(fldSimple)
-    
+
     if text_after:
         r_after = paragraph.add_run(text_after)
         r_after.font.name = "Times New Roman"
@@ -135,9 +179,12 @@ def clean_cv_text(s: str) -> str:
     s = s.replace(r"---", "—")
     s = s.replace(r"--", "–")
     s = s.replace(r"\\", "")
+    s = re.sub(r"\\LaTeX\\?\b", "LaTeX", s)
+    s = re.sub(r"\\TeX\\?\b", "TeX", s)
+    s = re.sub(r"\\(?:l?dots)\b", "…", s)
     s = re.sub(r"\\quad|\\qquad|~", " ", s)
     s = re.sub(r"\\cdot|\$\s*\\cdot\s*\$", " · ", s)
-    s = re.sub(r"\$\s*\\;?\\vert\\;?\s*\$|\\vert", " · ", s)
+    s = re.sub(r"\$\s*\\;?\\vert\\;?\s*\$|\\vert", " | ", s)
     s = re.sub(r"\$\^\{\*\}\$|\$\^\*\$", "∗", s)
     s = re.sub(r"\$\^\{\\dagger\}\$|\$\^\\dagger\$", "†", s)
     s = re.sub(r"\$\^\{([^}]+)\}\$", lambda m: _translate_superscript(m.group(1)), s)
@@ -148,7 +195,11 @@ def clean_cv_text(s: str) -> str:
     s = re.sub(r"\\noindent\b", "", s)
     s = re.sub(r"\\vspace\*?\{[^}]*\}", "", s)
     s = re.sub(r"\\hspace\*?\{[^}]*\}", "", s)
-    s = re.sub(r"\\(small|footnotesize|scriptsize|large|Large|LARGE|huge|Huge|normalsize|centering)\b", "", s)
+    s = re.sub(
+        r"\\(small|footnotesize|scriptsize|large|Large|LARGE|huge|Huge|normalsize|centering)\b",
+        "",
+        s,
+    )
     s = re.sub(r"\[\d+(\.\d+)?(pt|em|ex|cm|mm|in)\]", "", s)
     s = s.replace("{", "").replace("}", "")
     return s
@@ -165,7 +216,7 @@ def add_hyperlink(paragraph, url: str, text: str, size: float = 9.5) -> None:
         f'<w:r xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:rPr>'
         f'<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>'
         f'<w:color w:val="004F87"/><w:u w:val="single"/><w:sz w:val="{int(size * 2)}"/>'
-        f'</w:rPr><w:t>{text}</w:t></w:r>'
+        f"</w:rPr><w:t>{text}</w:t></w:r>"
     )
     hyperlink.append(new_run)
     paragraph._p.append(hyperlink)
@@ -181,25 +232,46 @@ def add_runs(
 ) -> None:
     idx = 0
     while idx < len(text):
-        if text[idx:idx+8] == r"\textbf{":
+        if text[idx : idx + 8] == r"\textbf{":
             inner, next_idx = parse_brace_block(text, idx + 7)
             if inner is not None:
-                add_runs(paragraph, inner, base_size=base_size, base_bold=True, base_italic=base_italic, base_underline=base_underline)
+                add_runs(
+                    paragraph,
+                    inner,
+                    base_size=base_size,
+                    base_bold=True,
+                    base_italic=base_italic,
+                    base_underline=base_underline,
+                )
                 idx = next_idx
                 continue
-        elif text[idx:idx+8] == r"\textit{":
+        elif text[idx : idx + 8] == r"\textit{":
             inner, next_idx = parse_brace_block(text, idx + 7)
             if inner is not None:
-                add_runs(paragraph, inner, base_size=base_size, base_bold=base_bold, base_italic=True, base_underline=base_underline)
+                add_runs(
+                    paragraph,
+                    inner,
+                    base_size=base_size,
+                    base_bold=base_bold,
+                    base_italic=True,
+                    base_underline=base_underline,
+                )
                 idx = next_idx
                 continue
-        elif text[idx:idx+11] == r"\underline{":
+        elif text[idx : idx + 11] == r"\underline{":
             inner, next_idx = parse_brace_block(text, idx + 10)
             if inner is not None:
-                add_runs(paragraph, inner, base_size=base_size, base_bold=base_bold, base_italic=base_italic, base_underline=True)
+                add_runs(
+                    paragraph,
+                    inner,
+                    base_size=base_size,
+                    base_bold=base_bold,
+                    base_italic=base_italic,
+                    base_underline=True,
+                )
                 idx = next_idx
                 continue
-        elif text[idx:idx+6] == r"\href{":
+        elif text[idx : idx + 6] == r"\href{":
             url, next_idx = parse_brace_block(text, idx + 5)
             if url is not None and next_idx < len(text) and text[next_idx] == "{":
                 label, next_idx2 = parse_brace_block(text, next_idx)
@@ -207,7 +279,7 @@ def add_runs(
                     add_hyperlink(paragraph, url, clean_cv_text(label), size=base_size)
                     idx = next_idx2
                     continue
-        elif text[idx:idx+5] == r"\url{":
+        elif text[idx : idx + 5] == r"\url{":
             url, next_idx = parse_brace_block(text, idx + 4)
             if url is not None:
                 add_hyperlink(paragraph, url, clean_cv_text(url), size=base_size)
@@ -219,7 +291,7 @@ def add_runs(
             cpos = text.find(cmd, idx)
             if cpos != -1 and cpos < next_cmd:
                 next_cmd = cpos
-        
+
         chunk = text[idx:next_cmd]
         c = clean_cv_text(chunk)
         if c:
@@ -294,14 +366,20 @@ def export_latex_cv_to_docx(
         is_bps = True
         bps_match = re.search(r"\\bps(true|false)", raw_tex)
         if bps_match:
-            is_bps = (bps_match.group(1) == "true")
+            is_bps = bps_match.group(1) == "true"
 
         start = raw_tex.find(r"\begin{document}")
         end = raw_tex.rfind(r"\end{document}")
-        body = raw_tex[start + len(r"\begin{document}"):end] if (start != -1 and end != -1) else raw_tex
+        body = (
+            raw_tex[start + len(r"\begin{document}") : end]
+            if (start != -1 and end != -1)
+            else raw_tex
+        )
 
         # Resolve \ifbps
-        cond_pat = re.compile(r"\\ifbps((?:(?!\\ifbps)[\s\S])*?)\\else((?:(?!\\ifbps)[\s\S])*?)\\fi")
+        cond_pat = re.compile(
+            r"\\ifbps((?:(?!\\ifbps)[\s\S])*?)\\else((?:(?!\\ifbps)[\s\S])*?)\\fi"
+        )
         while cond_pat.search(body):
             body = cond_pat.sub(r"\1" if is_bps else r"\2", body)
         single_if = re.compile(r"\\ifbps((?:(?!\\ifbps)[\s\S])*?)\\fi")
@@ -324,7 +402,9 @@ def export_latex_cv_to_docx(
             ftr_first.alignment = WD_ALIGN_PARAGRAPH.CENTER
             add_xml_field(ftr_first, "Page ", "PAGE", " of ")
             ftr_first._p.append(
-                parse_xml('<w:fldSimple xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" w:instr="NUMPAGES"/>')
+                parse_xml(
+                    '<w:fldSimple xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" w:instr="NUMPAGES"/>'
+                )
             )
 
             if rhead_text:
@@ -339,7 +419,9 @@ def export_latex_cv_to_docx(
             ftr_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             add_xml_field(ftr_p, "Page ", "PAGE", " of ")
             ftr_p._p.append(
-                parse_xml('<w:fldSimple xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" w:instr="NUMPAGES"/>')
+                parse_xml(
+                    '<w:fldSimple xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" w:instr="NUMPAGES"/>'
+                )
             )
 
         normal_style = doc.styles["Normal"]
@@ -392,8 +474,15 @@ def export_latex_cv_to_docx(
                     i += 1
                 i += 1
                 header_raw = unwrap_fontsize("\n".join(hlines))
-                chunks = [c.strip() for c in re.split(r"\\\\(?:\s*\[[^\]]*\])?|\n\s*\n", header_raw) if c.strip()]
+                chunks = [
+                    c.strip()
+                    for c in re.split(r"\\\\(?:\s*\[[^\]]*\])?|\n\s*\n", header_raw)
+                    if c.strip()
+                ]
                 for idx, c in enumerate(chunks):
+                    c = re.sub(r"\s*\n\s*", " ", c).strip()
+                    if not c:
+                        continue
                     p_head = doc.add_paragraph()
                     p_head.alignment = align_choice
                     p_head.paragraph_format.space_before = Pt(0)
@@ -430,7 +519,9 @@ def export_latex_cv_to_docx(
                 p_entry.paragraph_format.space_before = Pt(1.5)
                 p_entry.paragraph_format.space_after = Pt(0.8)
                 p_entry.paragraph_format.line_spacing = line_spacing
-                p_entry.paragraph_format.tab_stops.add_tab_stop(content_width, WD_TAB_ALIGNMENT.RIGHT)
+                p_entry.paragraph_format.tab_stops.add_tab_stop(
+                    content_width, WD_TAB_ALIGNMENT.RIGHT
+                )
                 add_runs(p_entry, left_part, base_size=10.0)
                 p_entry.add_run("\t")
                 add_runs(p_entry, right_part, base_size=10.0)
@@ -449,7 +540,9 @@ def export_latex_cv_to_docx(
                     i += 1
                 i += 1
                 tab_raw = " ".join(tlines)
-                rows = [r.strip() for r in re.split(r"\\\\(?:\s*\[[^\]]*\])?", tab_raw) if r.strip()]
+                rows = [
+                    r.strip() for r in re.split(r"\\\\(?:\s*\[[^\]]*\])?", tab_raw) if r.strip()
+                ]
                 if rows:
                     col0_w = Inches(1.35)
                     m_cw = re.search(r"p\{([\d\.]+(?:in|cm|mm|pt))\}", tab_spec)
@@ -470,7 +563,7 @@ def export_latex_cv_to_docx(
                         '<w:right w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
                         '<w:insideH w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
                         '<w:insideV w:val="none" w:sz="0" w:space="0" w:color="auto"/>'
-                        '</w:tblBorders>'
+                        "</w:tblBorders>"
                     )
                     tblPr.append(tblBorders)
                     tblCellMar = parse_xml(
@@ -479,9 +572,16 @@ def export_latex_cv_to_docx(
                         '<w:bottom w:w="20" w:type="dxa"/>'
                         '<w:left w:w="0" w:type="dxa"/>'
                         '<w:right w:w="100" w:type="dxa"/>'
-                        '</w:tblCellMar>'
+                        "</w:tblCellMar>"
                     )
                     tblPr.append(tblCellMar)
+                    tblW = parse_xml(
+                        f'<w:tblW xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+                        f'w:type="dxa" w:w="{int(content_width / 635)}"/>'
+                    )
+                    tblPr.append(tblW)
+                    table.columns[0].width = col0_w
+                    table.columns[1].width = col1_w
                     for r_idx, row_text in enumerate(rows):
                         cells = row_text.split("&", 1)
                         c0 = table.rows[r_idx].cells[0]
@@ -509,10 +609,12 @@ def export_latex_cv_to_docx(
                 is_num = r"\begin{enumerate}" in line
                 num_idx = 1
                 i += 1
-                while i < len(lines) and (r"\end{itemize}" not in lines[i] and r"\end{enumerate}" not in lines[i]):
+                while i < len(lines) and (
+                    r"\end{itemize}" not in lines[i] and r"\end{enumerate}" not in lines[i]
+                ):
                     il = lines[i].strip()
                     if il.startswith(r"\item"):
-                        item_text = il[len(r"\item"):].strip()
+                        item_text = il[len(r"\item") :].strip()
                         i += 1
                         while (
                             i < len(lines)
@@ -556,13 +658,13 @@ def export_latex_cv_to_docx(
             clean_l = line.replace(r"\\", "").strip()
             if clean_l.startswith(r"{\centering") and clean_l.endswith("}"):
                 p_reg.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                clean_l = clean_l[len(r"{\centering"): -1].strip()
+                clean_l = clean_l[len(r"{\centering") : -1].strip()
             elif clean_l.startswith(r"{\raggedleft") and clean_l.endswith("}"):
                 p_reg.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-                clean_l = clean_l[len(r"{\raggedleft"): -1].strip()
+                clean_l = clean_l[len(r"{\raggedleft") : -1].strip()
             elif clean_l.startswith(r"{\raggedright") and clean_l.endswith("}"):
                 p_reg.alignment = WD_ALIGN_PARAGRAPH.LEFT
-                clean_l = clean_l[len(r"{\raggedright"): -1].strip()
+                clean_l = clean_l[len(r"{\raggedright") : -1].strip()
             add_runs(p_reg, clean_l, base_size=9.5)
             i += 1
 
@@ -577,6 +679,7 @@ def export_latex_cv_to_docx(
 # SCIENTIFIC MANUSCRIPT PIPELINE (Pandoc + Postprocessing)
 # ==============================================================================
 
+
 def _strip_math_group(content: str) -> str:
     while content.startswith("{") and content.endswith("}"):
         inner, pos = parse_brace_block(content, 0)
@@ -588,13 +691,34 @@ def _strip_math_group(content: str) -> str:
 
 def _normalize_simple_math_for_docx(expr: str) -> str:
     greek_map = {
-        r"\alpha": "α", r"\beta": "β", r"\gamma": "γ", r"\chi": "χ",
-        r"\Delta": "Δ", r"\delta": "δ", r"\epsilon": "ε", r"\eta": "η",
-        r"\theta": "θ", r"\lambda": "λ", r"\mu": "μ", r"\pi": "π",
-        r"\sigma": "σ", r"\tau": "τ", r"\phi": "φ", r"\omega": "ω",
-        r"\Omega": "Ω", r"\circ": "°", r"\ln": " ln", r"\sum": "∑",
-        r"\sim": "~", r"\rightarrow": "→", r"\geq": "≥", r"\leq": "≤",
-        r"\times": "×", r"\cdot": "·", r"\vert": "|", r"\pm": "±",
+        r"\alpha": "α",
+        r"\beta": "β",
+        r"\gamma": "γ",
+        r"\chi": "χ",
+        r"\Delta": "Δ",
+        r"\delta": "δ",
+        r"\epsilon": "ε",
+        r"\eta": "η",
+        r"\theta": "θ",
+        r"\lambda": "λ",
+        r"\mu": "μ",
+        r"\pi": "π",
+        r"\sigma": "σ",
+        r"\tau": "τ",
+        r"\phi": "φ",
+        r"\omega": "ω",
+        r"\Omega": "Ω",
+        r"\circ": "°",
+        r"\ln": " ln",
+        r"\sum": "∑",
+        r"\sim": "~",
+        r"\rightarrow": "→",
+        r"\geq": "≥",
+        r"\leq": "≤",
+        r"\times": "×",
+        r"\cdot": "·",
+        r"\vert": "|",
+        r"\pm": "±",
     }
 
     expr = " ".join(expr.split())
@@ -723,7 +847,9 @@ def load_bib_map(build_dir: Path, stem: str) -> dict[str, str]:
     return bib_map
 
 
-def replace_citations_and_refs(text: str, label_map: dict[str, str], bib_map: dict[str, str]) -> str:
+def replace_citations_and_refs(
+    text: str, label_map: dict[str, str], bib_map: dict[str, str]
+) -> str:
     def cite_repl(match: re.Match[str]) -> str:
         keys = [part.strip() for part in match.group(1).split(",") if part.strip()]
         nums = [bib_map.get(key, key) for key in keys]
@@ -732,9 +858,7 @@ def replace_citations_and_refs(text: str, label_map: dict[str, str], bib_map: di
     for pat in (r"\\cite\{([^}]+)\}", r"\\citep\{([^}]+)\}", r"\\citet\{([^}]+)\}"):
         text = re.sub(pat, cite_repl, text)
 
-    text = re.sub(
-        r"\\ref\{([^}]+)\}", lambda m: label_map.get(m.group(1), m.group(1)), text
-    )
+    text = re.sub(r"\\ref\{([^}]+)\}", lambda m: label_map.get(m.group(1), m.group(1)), text)
     text = re.sub(
         r"\\eqref\{([^}]+)\}", lambda m: "(" + label_map.get(m.group(1), m.group(1)) + ")", text
     )
@@ -743,7 +867,9 @@ def replace_citations_and_refs(text: str, label_map: dict[str, str], bib_map: di
 
 def clean_latex_body_for_pandoc(text: str) -> str:
     """Prepare LaTeX document body for clean Pandoc Word conversion."""
-    text = re.sub(r"\\ifbps((?:(?!\\ifbps)[\s\S])*?)\\else((?:(?!\\ifbps)[\s\S])*?)\\fi", r"\1", text)
+    text = re.sub(
+        r"\\ifbps((?:(?!\\ifbps)[\s\S])*?)\\else((?:(?!\\ifbps)[\s\S])*?)\\fi", r"\1", text
+    )
     text = re.sub(r"\\ifbps((?:(?!\\ifbps)[\s\S])*?)\\fi", r"\1", text)
     text = text.replace(r"\ifbps", "").replace(r"\else", "").replace(r"\fi", "")
 
@@ -974,7 +1100,7 @@ def postprocess_docx_typography(
         styles_root = ET.fromstring(files[styles_path])
         doc_defaults = styles_root.find(f".//{{{NS_W}}}docDefaults")
         if doc_defaults is None:
-            doc_defaults = ET.SubElement(styles_root, f".//{{{NS_W}}}docDefaults")
+            doc_defaults = ET.SubElement(styles_root, f"{{{NS_W}}}docDefaults")
         rpr_default_parent = doc_defaults.find(f"{{{NS_W}}}rPrDefault")
         if rpr_default_parent is None:
             rpr_default_parent = ET.SubElement(doc_defaults, f"{{{NS_W}}}rPrDefault")
@@ -1008,13 +1134,13 @@ def postprocess_docx_typography(
     doc = Document(docx_path)
     for p in doc.paragraphs:
         p.paragraph_format.line_spacing = line_spacing
-        p.paragraph_format.space_after = int(space_after_pt * 20)
+        p.paragraph_format.space_after = Pt(space_after_pt)
 
     for section in doc.sections:
-        section.top_margin = int(72 * 20 * 0.75)
-        section.bottom_margin = int(72 * 20 * 0.75)
-        section.left_margin = int(72 * 20 * 0.75)
-        section.right_margin = int(72 * 20 * 0.75)
+        section.top_margin = Inches(0.75)
+        section.bottom_margin = Inches(0.75)
+        section.left_margin = Inches(0.75)
+        section.right_margin = Inches(0.75)
 
     for table in doc.tables:
         table.autofit = True
@@ -1022,7 +1148,7 @@ def postprocess_docx_typography(
             for cell in row.cells:
                 for p in cell.paragraphs:
                     p.paragraph_format.line_spacing = 1.05
-                    p.paragraph_format.space_after = int(max(0, space_after_pt - 1) * 20)
+                    p.paragraph_format.space_after = Pt(max(0, space_after_pt - 1))
 
     doc.save(docx_path)
 
@@ -1064,7 +1190,7 @@ def export_latex_manuscript_to_docx(
     start = raw_tex.find(r"\begin{document}")
     end = raw_tex.rfind(r"\end{document}")
     if start != -1 and end != -1:
-        body = raw_tex[start + len(r"\begin{document}"):end]
+        body = raw_tex[start + len(r"\begin{document}") : end]
     else:
         body = raw_tex
 
@@ -1075,12 +1201,16 @@ def export_latex_manuscript_to_docx(
     body = linearize_inline_math_for_docx(body)
     body = normalize_unit_macros_for_docx(body)
 
-    clean_tex = r"""\documentclass{article}
+    clean_tex = (
+        r"""\documentclass{article}
 \usepackage{hyperref}
 \begin{document}
-""" + body + r"""
+"""
+        + body
+        + r"""
 \end{document}
 """
+    )
 
     out_docx_path.parent.mkdir(parents=True, exist_ok=True)
     tmp_tex = out_docx_path.parent / f".tmp_{stem}_docx_prep.tex"
@@ -1100,13 +1230,16 @@ def export_latex_manuscript_to_docx(
     if tmp_tex.exists():
         tmp_tex.unlink()
 
-    postprocess_docx_typography(out_docx_path, line_spacing=line_spacing, space_after_pt=space_after_pt)
+    postprocess_docx_typography(
+        out_docx_path, line_spacing=line_spacing, space_after_pt=space_after_pt
+    )
     return True, f"Successfully exported to {out_docx_path}"
 
 
 # ==============================================================================
 # MAIN ROUTER
 # ==============================================================================
+
 
 def export_latex_to_docx(
     tex_path: Path,
@@ -1146,6 +1279,7 @@ def export_latex_to_docx(
 
 if __name__ == "__main__":
     import sys
+
     target = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("demo/main.tex")
     out = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("demo/.localleaf_build/main.docx")
     ok, msg = export_latex_to_docx(target, out)

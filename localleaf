@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# LocalLeaf - Offline Overleaf-Style Local LaTeX Editor
+set -euo pipefail
 TARGET="$(readlink -f "${BASH_SOURCE[0]}")"
-DIR="$(cd "$(dirname "$TARGET")" && pwd)"
-exec /home/paul/miniforge3/bin/python3 "$DIR/server.py" "$@"
+exec "${LOCALLEAF_PYTHON:-python3}" "$(dirname "$TARGET")/server.py" "$@"

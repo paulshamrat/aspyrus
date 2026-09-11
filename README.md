@@ -1,50 +1,93 @@
-# 🍃 LocalLeaf
+# LocalLeaf
 
-An ultra-lightweight, offline-first, local Overleaf-style LaTeX editor running in your web browser.
+LocalLeaf is an **early alpha** local LaTeX editor for the browser and VS Code.
+Edit ordinary text and headings visually, switch to source for complex LaTeX,
+compile a PDF, and export a DOCX. Documents stay in their existing projects.
 
-Developed in `/home/paul/tools/localleaf`.
+This release prioritizes source preservation over unrestricted visual formatting.
+It is not yet a full Overleaf or Word replacement. See [supported LaTeX](docs/supported-latex.md).
 
----
+## Install from a checkout
 
-## 🌟 Highlights
+Requirements: Python 3.11+, Node.js 22.13+, npm, and a LaTeX installation
+providing `pdflatex`, `xelatex`, or `lualatex`. Install Pandoc separately for DOCX.
+Dependencies are downloaded during installation; normal editing uses local assets.
 
-- **Overleaf-Inspired Interface**: Familiar split-screen design with editor on the left and live PDF preview on the right.
-- **Powered by Monaco Editor**: The exact editor core used by Overleaf and VS Code, featuring full LaTeX syntax highlighting, line numbers, code folding, and auto-indentation.
-- **100% Offline & Local**: Monaco Editor and all dependencies are bundled locally. Zero external CDNs, zero cloud uploads, zero telemetry.
-- **Native PDF Viewer**: Uses hardware-accelerated browser PDF rendering with zoom, text selection, search (`Ctrl+F`), and download.
-- **Smart Directory Management**:
-  - If your document lives in `scripts/` (e.g. `pauls/scripts/main.tex`), LocalLeaf automatically compiles the output PDF to `data/output/main.pdf`.
-  - Keeps your Git repository clean—no `.aux`, `.log`, `.out`, or temporary files cluttering your source code!
-- **Interactive Error Panel**: Parses LaTeX errors and warnings with clickable **"Jump to Line"** buttons that instantly position your cursor at the error in the editor.
-- **Engine Switching**: Switch between `pdflatex`, `lualatex`, and `xelatex` directly from the top toolbar.
-- **Dark & Light Themes**: Seamlessly toggle between dark and light modes.
-
----
-
-## 🚀 Quick Start
-
-### 1. Launch from anywhere
-The `localleaf` command is installed in `/home/paul/bin/localleaf` (already in your `$PATH`):
-
-```bash
-# Launch editor with your CV:
-localleaf /home/paul/cv/pauls/scripts/main.tex
-
-# Or launch in any directory with a main.tex:
-cd /home/paul/cv/pauls/scripts
-localleaf
+```sh
+python3 -m venv .venv
+source .venv/bin/activate
+npm ci
+npm run build
+python -m pip install -e '.[dev]'
+localleaf /absolute/path/to/main.tex
 ```
 
-LocalLeaf will spin up a local server on `http://localhost:4848` and immediately open your browser.
+On Windows, activate `.venv\Scripts\Activate.ps1` in PowerShell and use `python`.
+The Python entry point is portable; the optional root shell launcher is for Linux.
 
----
+The editor opens on loopback port 4848. Use `--no-browser` to suppress opening,
+`--port 0` for a free port, or `--output-dir PATH` to override output placement.
+Running the command again opens the requested file in the existing LocalLeaf server.
+A missing `.tex` file is created only when saved.
 
-## ⌨️ Shortcuts
+## VS Code
 
-| Shortcut | Action |
-| :--- | :--- |
-| `Ctrl + S` | Save file & Auto-compile (if auto-compile is enabled) |
-| `Ctrl + Enter` | Recompile immediately |
-| `Ctrl + F` | Search inside editor |
-| `Ctrl + H` | Find and Replace |
-| Drag middle bar | Resize editor vs. PDF split ratio |
+Build the backend assets and install the Python package as above, then:
+
+```sh
+npm run package:extension
+```
+
+Install the resulting `apps/vscode/localleaf-0.1.0.vsix` using VS Code's
+**Extensions: Install from VSIX** command. Set `localleaf.pythonPath` to the
+absolute path of your environment's Python. Open a `.tex` file and run
+**LocalLeaf: Open LaTeX Editor**. Each panel owns a local backend process.
+Save before closing a panel. Local desktop workspaces are the initial target;
+remote/web workspaces have not been validated.
+
+## Editing and exports
+
+- **Ctrl/Cmd+S:** save. **Ctrl/Cmd+Enter:** save and compile. **Alt+Z:** code word wrap.
+- Visual mode supports text, basic headings, bold, italic, and underline.
+- Complex LaTeX appears as preserved source blocks. Double-click one to edit in Code.
+- Saves detect external changes and refuse to overwrite them. Copy your unsaved
+  edits before choosing Reload if you need to reconcile a conflict.
+- PDF preview can be hidden and zoomed. It is canvas-based; use an external viewer
+  for PDF text selection, search, and accessibility tools.
+- DOCX uses Pandoc and retains native equations where supported. Layout may differ
+  from PDF; inspect conversion messages and the exported document.
+- Manual saving only in this alpha. Unsupported legacy toolbar actions are removed
+  rather than displayed as working features.
+
+Build artifacts default to `.localleaf_build/` beside the source. An optional
+`localleaf.toml` supports other layouts, including `scripts/` and `data/`:
+
+```toml
+[project]
+engine = "pdflatex"
+output_dir = "data/output"
+```
+
+Paths are relative to that configuration file. See [configuration](docs/project-configuration.md).
+Try the synthetic example with `localleaf examples/article/main.tex`.
+
+## Development and release checks
+
+```sh
+ruff check .
+ruff format --check .
+npm run lint
+npm run format:check
+pytest
+npm test
+npm run build
+python -m build
+npm run package:extension
+```
+
+The wheel includes offline editor dependencies. Node.js is needed to build from
+source, not to run an already built wheel. External LaTeX and Pandoc executables
+are not bundled. Never run the server on a public interface.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md), [architecture](docs/architecture.md),
+[export fidelity](docs/export-fidelity.md), and [release checklist](docs/releasing.md).

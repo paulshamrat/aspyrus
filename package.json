@@ -1,6 +1,32 @@
 {
+  "name": "localleaf",
+  "version": "0.1.0-alpha.1",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "node --test packages/editor/tests/*.test.js",
+    "package:extension": "cd apps/vscode && vsce package --no-dependencies --allow-missing-repository"
+  },
   "dependencies": {
-    "monaco-editor": "^0.56.0",
-    "pdfjs-dist": "^6.3.289"
+    "monaco-editor": "0.56.0",
+    "pdfjs-dist": "6.3.289"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@vscode/vsce": "3.9.2",
+    "esbuild": "0.28.2",
+    "eslint": "10.10.0",
+    "globals": "16.3.0",
+    "prettier": "3.9.6"
+  },
+  "overrides": {
+    "dompurify": "3.4.15"
   }
 }

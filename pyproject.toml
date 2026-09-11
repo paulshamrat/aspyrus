@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "localleaf"
+version = "0.1.0a1"
+description = "Local LaTeX editing with a browser and VS Code interface"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = []
+classifiers = ["Development Status :: 3 - Alpha", "Programming Language :: Python :: 3", "Topic :: Text Processing :: Markup :: LaTeX"]
+
+[project.optional-dependencies]
+legacy-export = ["python-docx>=1.1,<2", "pypandoc>=1.13,<2"]
+dev = ["ruff==0.12.12", "pytest>=8,<9", "build>=1.2,<2", "python-docx>=1.1,<2", "pypandoc>=1.13,<2"]
+
+[project.scripts]
+localleaf = "localleaf.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["backend/src"]
+
+[tool.setuptools.package-data]
+localleaf = ["assets/**/*", "assets/*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["backend/src"]
+testpaths = ["backend/tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP"]
+
+[tool.ruff.format]
+quote-style = "double"

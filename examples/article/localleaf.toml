@@ -1,0 +1,3 @@
+[project]
+engine = "pdflatex"
+output_dir = ".localleaf_build"

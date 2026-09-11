@@ -8,3 +8,13 @@ demo/
 *.out
 *.pdf
 .DS_Store
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+backend/src/localleaf/assets/
+build/
+dist/
+*.vsix
+*.docx
+notes.md

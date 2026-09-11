@@ -1,0 +1,180 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, sans-serif;
+  background: #161b22;
+  color: #e6edf3;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+header,
+nav,
+#format {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #343e4c;
+  flex-wrap: wrap;
+}
+header strong {
+  color: #91d9ae;
+  white-space: nowrap;
+}
+small {
+  font-size: 11px;
+  color: #8c9bad;
+}
+#filename {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 25vw;
+}
+#status {
+  margin-left: auto;
+  font-size: 12px;
+  color: #c0d1e7;
+  max-width: 45%;
+  overflow-wrap: anywhere;
+}
+button,
+select {
+  font: inherit;
+  font-size: 13px;
+  background: #263140;
+  color: inherit;
+  border: 1px solid #465368;
+  border-radius: 5px;
+  padding: 7px 11px;
+  cursor: pointer;
+}
+button:hover {
+  background: #34485e;
+}
+button[aria-pressed='true'] {
+  background: #235f45;
+  border-color: #65b88a;
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: wait;
+}
+.spacer {
+  flex: 1;
+}
+#format {
+  font-size: 12px;
+  color: #b1c0d2;
+}
+main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+#editing {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+}
+#code {
+  height: 100%;
+  min-height: 300px;
+}
+#visual {
+  max-width: 850px;
+  margin: 24px auto;
+  padding: 24px 36px;
+  background: #fcfcf8;
+  color: #172029;
+  line-height: 1.65;
+  min-height: 90%;
+  font-family: Georgia, serif;
+}
+#visual [contenteditable] {
+  outline: none;
+  border-radius: 3px;
+  white-space: pre-wrap;
+  min-height: 1.6em;
+}
+#visual [contenteditable]:focus {
+  box-shadow: 0 0 0 2px #75b396;
+}
+#visual .source-block {
+  font:
+    12px/1.5 ui-monospace,
+    monospace;
+  background: #edf0f2;
+  color: #53616d;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 6px 10px;
+  border-left: 2px solid #bac8d1;
+  margin: 4px 0;
+}
+#preview {
+  width: 45%;
+  min-width: 250px;
+  background: #262c35;
+  border-left: 1px solid #465368;
+  overflow: auto;
+}
+.pdf-tools {
+  position: sticky;
+  top: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  background: #262c35;
+  padding: 8px;
+  z-index: 1;
+}
+#pages {
+  padding: 15px;
+  text-align: center;
+}
+canvas {
+  display: block;
+  margin: 0 auto 18px;
+  box-shadow: 0 3px 12px #0005;
+}
+#diagnostics {
+  max-height: 30vh;
+  overflow: auto;
+  border-top: 1px solid #465368;
+  padding: 8px 16px;
+}
+summary {
+  cursor: pointer;
+}
+#log {
+  white-space: pre-wrap;
+  font-size: 12px;
+}
+[hidden] {
+  display: none !important;
+}
+@media (max-width: 800px) {
+  #preview {
+    width: 40%;
+    min-width: 180px;
+  }
+  #visual {
+    padding: 16px;
+    margin: 8px;
+  }
+  #format span:last-child {
+    display: none;
+  }
+  header,
+  nav {
+    gap: 5px;
+    padding: 7px;
+  }
+}

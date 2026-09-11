@@ -1,0 +1,12 @@
+node_modules/
+backend/src/localleaf/assets/
+dist/
+build/
+demo/
+.venv/
+*.py
+*.toml
+*.tex
+*.sh
+*.lock
+notes.md
