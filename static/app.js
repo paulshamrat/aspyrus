@@ -54,16 +54,23 @@ const elVisualBody = document.getElementById('visual-body');
 const elVBtnUndo = document.getElementById('v-btn-undo');
 const elVBtnRedo = document.getElementById('v-btn-redo');
 const elVFormatSelect = document.getElementById('v-format-select');
+const elVFontSelect = document.getElementById('v-font-select');
 const elVBtnBold = document.getElementById('v-btn-bold');
 const elVBtnItalic = document.getElementById('v-btn-italic');
 const elVBtnUnderline = document.getElementById('v-btn-underline');
 const elVBtnStrike = document.getElementById('v-btn-strike');
+const elVBtnSup = document.getElementById('v-btn-sup');
+const elVBtnSub = document.getElementById('v-btn-sub');
 const elVBtnAlignLeft = document.getElementById('v-btn-align-left');
 const elVBtnAlignCenter = document.getElementById('v-btn-align-center');
 const elVBtnAlignRight = document.getElementById('v-btn-align-right');
 const elVBtnBullet = document.getElementById('v-btn-bullet');
 const elVBtnNumber = document.getElementById('v-btn-number');
+const elVBtnOutdent = document.getElementById('v-btn-outdent');
+const elVBtnIndent = document.getElementById('v-btn-indent');
 const elVBtnHr = document.getElementById('v-btn-hr');
+const elVBtnLink = document.getElementById('v-btn-link');
+const elVBtnInsertEntry = document.getElementById('v-btn-insert-entry');
 const elVBtnClear = document.getElementById('v-btn-clear');
 
 // PDF Zoom Toolbar Elements
@@ -204,11 +211,106 @@ require(['vs/editor/editor.main'], function () {
   loadFile();
 });
 
-// Switch Between Code and Visual Modes
+// Bi-directional Cursor / Position Synchronization between Visual and Code
+let lastActiveVisualSnippet = '';
+
+function updateVisualSelectionSnippet() {
+  const selection = window.getSelection();
+  if (!selection || !selection.rangeCount) return;
+
+  let node = selection.anchorNode;
+  if (!node) return;
+  if (node.nodeType === Node.TEXT_NODE) {
+    node = node.parentElement;
+  }
+  if (!elVisualBody || !elVisualBody.contains(node)) return;
+
+  let block = node;
+  while (block && block !== elVisualBody && !['P', 'H1', 'H2', 'H3', 'H4', 'LI', 'TR', 'DIV'].includes(block.tagName)) {
+    block = block.parentElement;
+  }
+  if (!block || block === elVisualBody) block = node;
+
+  const text = block.textContent.trim();
+  if (text) {
+    const words = text.replace(/[^\w\s-]/g, ' ').trim().split(/\s+/).filter(w => w.length > 2);
+    if (words.length > 0) {
+      lastActiveVisualSnippet = words.slice(0, 4).join(' ');
+    }
+  }
+}
+
+function jumpCodeEditorToSnippet(snippet) {
+  if (!editor || !snippet) return;
+  const model = editor.getModel();
+  if (!model) return;
+
+  let matches = model.findMatches(snippet, false, false, false, null, false);
+  if (!matches || matches.length === 0) {
+    const words = snippet.split(/\s+/).filter(w => w.length > 2);
+    if (words.length >= 2) {
+      matches = model.findMatches(words.slice(0, 2).join(' '), false, false, false, null, false);
+    }
+    if ((!matches || matches.length === 0) && words.length > 0) {
+      matches = model.findMatches(words[0], false, false, false, null, false);
+    }
+  }
+
+  if (matches && matches.length > 0) {
+    const targetLine = matches[0].range.startLineNumber;
+    editor.revealLineInCenter(targetLine);
+    editor.setPosition({ lineNumber: targetLine, column: matches[0].range.startColumn });
+    editor.focus();
+  }
+}
+
+function jumpVisualEditorToText(text) {
+  if (!text || !elVisualBody) return;
+  const words = text.replace(/[^\w\s-]/g, ' ').trim().split(/\s+/).filter(w => w.length > 2);
+  if (words.length === 0) return;
+
+  const targetSearch = words.slice(0, 3).join(' ').toLowerCase();
+  const singleSearch = words[0].toLowerCase();
+
+  const walker = document.createTreeWalker(elVisualBody, NodeFilter.SHOW_ELEMENT);
+  let matchNode = null;
+  while (walker.nextNode()) {
+    const el = walker.currentNode;
+    if (['P', 'H1', 'H2', 'H3', 'H4', 'LI', 'TR', 'DIV'].includes(el.tagName)) {
+      const content = el.textContent.toLowerCase();
+      if (content.includes(targetSearch)) {
+        matchNode = el;
+        break;
+      }
+    }
+  }
+
+  if (!matchNode) {
+    const walker2 = document.createTreeWalker(elVisualBody, NodeFilter.SHOW_ELEMENT);
+    while (walker2.nextNode()) {
+      const el = walker2.currentNode;
+      if (['P', 'H1', 'H2', 'H3', 'H4', 'LI', 'TR'].includes(el.tagName)) {
+        if (el.textContent.toLowerCase().includes(singleSearch)) {
+          matchNode = el;
+          break;
+        }
+      }
+    }
+  }
+
+  if (matchNode) {
+    matchNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    matchNode.classList.add('visual-highlight-jump');
+    setTimeout(() => matchNode.classList.remove('visual-highlight-jump'), 1500);
+  }
+}
+
+// Switch Between Code and Visual Modes with Position Sync
 function setEditorMode(mode) {
   if (currentMode === mode) return;
 
   if (mode === 'code') {
+    updateVisualSelectionSnippet();
     const latexCode = serializeVisualToLatex();
     if (editor) {
       editor.setValue(latexCode);
@@ -218,8 +320,22 @@ function setEditorMode(mode) {
     elBtnModeCode.classList.add('active');
     elBtnModeVisual.classList.remove('active');
     elVisualToolbar.classList.add('disabled');
-    if (editor) editor.layout();
+    currentMode = 'code';
+    if (editor) {
+      editor.layout();
+      if (lastActiveVisualSnippet) {
+        setTimeout(() => jumpCodeEditorToSnippet(lastActiveVisualSnippet), 40);
+      }
+    }
   } else {
+    let currentLineText = '';
+    if (editor) {
+      const pos = editor.getPosition();
+      if (pos) {
+        const lineContent = editor.getModel().getLineContent(pos.lineNumber);
+        currentLineText = lineContent.replace(/\\(?:textbf|textit|href|cvsection|begin|end|item|rule|fontsize|selectfont)\b[^{}]*(\{[^}]*\})?/g, ' ').trim();
+      }
+    }
     const latexCode = editor ? editor.getValue() : '';
     renderLatexToVisual(latexCode);
     elEditorContainer.classList.add('hidden');
@@ -227,9 +343,12 @@ function setEditorMode(mode) {
     elBtnModeVisual.classList.add('active');
     elBtnModeCode.classList.remove('active');
     elVisualToolbar.classList.remove('disabled');
-  }
+    currentMode = 'visual';
 
-  currentMode = mode;
+    if (currentLineText) {
+      setTimeout(() => jumpVisualEditorToText(currentLineText), 40);
+    }
+  }
 }
 
 elBtnModeCode.addEventListener('click', () => setEditorMode('code'));
@@ -564,9 +683,12 @@ function cleanLatexTypography(str) {
   // Line breaks \\ with optional bracket
   s = s.replace(/\\\\(\[\d+(\.\d+)?(pt|em|ex|cm|mm|in)\])?/g, ' ');
 
-  // Handle superscripts like $^*$ or $^{...}$
+  // Handle superscripts and subscripts
+  s = s.replace(/\\textsuperscript\{([^}]+)\}/g, '<sup>$1</sup>');
   s = s.replace(/\$\^\{?\*\}?\$/g, '<sup>*</sup>');
   s = s.replace(/\$\^\{([^}]+)\}\$/g, '<sup>$1</sup>');
+  s = s.replace(/\\textsubscript\{([^}]+)\}/g, '<sub>$1</sub>');
+  s = s.replace(/\$_\{([^}]+)\}\$/g, '<sub>$1</sub>');
 
   // Middle dot: \cdot or $\cdot$ or $\;\cdot\;$
   s = s.replace(/\\cdot|\$\s*\\cdot\s*\$/g, ' · ');
@@ -587,6 +709,8 @@ function cleanLatexTypography(str) {
   s = s.replace(/\\textbf\{([^{}]+)\}/g, '<strong>$1</strong>');
   // Convert \textit{...} -> <em>...</em>
   s = s.replace(/\\textit\{([^{}]+)\}/g, '<em>$1</em>');
+  // Convert \underline{...} -> <u>...</u>
+  s = s.replace(/\\underline\{([^{}]+)\}/g, '<u>$1</u>');
   // Convert \href{url}{text} -> <a href="url">text</a>
   s = s.replace(/\\href\{([^}]+)\}\{([^}]+)\}/g, '<a href="$1" target="_blank">$2</a>');
   s = s.replace(/\\href\{([^}]+)\}/g, '<a href="$1" target="_blank">$1</a>');
@@ -608,13 +732,21 @@ function cleanLatexTypography(str) {
   return s;
 }
 
-// Serialize Visual DOM back to valid LaTeX
+// Serialize Visual DOM back to valid LaTeX without dropping user content
 function serializeVisualToLatex() {
   const preamble = elPreambleTextarea.value.trim();
   let bodyLatex = '';
 
   const nodes = elVisualBody.childNodes;
   for (let node of nodes) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const txt = deformatHtmlToLatex(node.textContent).trim();
+      if (txt) {
+        bodyLatex += `${txt} \\\\\n`;
+      }
+      continue;
+    }
+
     if (node.nodeType === Node.ELEMENT_NODE) {
       const cl = node.classList;
       const tag = node.tagName.toLowerCase();
@@ -640,10 +772,25 @@ function serializeVisualToLatex() {
         if (hasBps) {
           bodyLatex += `    \\ifbps\n        \\\\[1.5pt]\n        {\\fontsize{9.5pt}{11.5pt}\\selectfont\\textbf{Biophysical Society (BPS) Student Member}}\n    \\fi\n`;
         }
-        bodyLatex += `\\end{center}\n\\vspace{1pt}\n\n`;
+        bodyLatex += `\\end{center}\n\\vspace{2pt}\n\n`;
+      } else if (tag === 'h1') {
+        const h1Text = deformatHtmlToLatex(node.innerHTML).trim();
+        if (h1Text) {
+          bodyLatex += `{\\centering {\\LARGE \\textbf{${h1Text}}} \\\\[4pt]}\\par\\medskip\n\n`;
+        }
       } else if (tag === 'h2' || cl.contains('cv-section-title')) {
         const secText = node.textContent.trim();
         bodyLatex += `\\cvsection{${deformatHtmlToLatex(secText)}}\n`;
+      } else if (tag === 'h3' || cl.contains('cv-subsection-title')) {
+        const subText = deformatHtmlToLatex(node.innerHTML).trim();
+        bodyLatex += `\\subsection*{${subText}}\n`;
+      } else if (tag === 'h4') {
+        const h4Text = deformatHtmlToLatex(node.innerHTML).trim();
+        bodyLatex += `\\textbf{${h4Text}} \\\\[2pt]\n`;
+      } else if (tag === 'hr') {
+        bodyLatex += `\\noindent\\rule{\\linewidth}{0.4pt}\\\\[4pt]\n\n`;
+      } else if (tag === 'blockquote') {
+        bodyLatex += `\\begin{quote}\n${deformatHtmlToLatex(node.innerHTML).trim()}\n\\end{quote}\n\n`;
       } else if (cl.contains('cv-entry-row')) {
         const titleEl = node.querySelector('.cv-entry-title');
         const dateEl = node.querySelector('.cv-entry-date');
@@ -668,14 +815,16 @@ function serializeVisualToLatex() {
           let tds = tr.querySelectorAll('td');
           if (tds.length >= 2) {
             bodyLatex += `\\textbf{${tds[0].textContent.trim()}} & ${deformatHtmlToLatex(tds[1].innerHTML)} \\\\\n`;
+          } else if (tds.length === 1) {
+            bodyLatex += `\\multicolumn{2}{@{}l@{}}{${deformatHtmlToLatex(tds[0].innerHTML)}} \\\\\n`;
           }
         });
         bodyLatex += `\\end{tabular}\n\n`;
-      } else if (tag === 'p') {
+      } else if (tag === 'p' || tag === 'div') {
         let text = deformatHtmlToLatex(node.innerHTML).trim();
         text = text.replace(/\\(vspace|hspace)\*?(\{[^}]*\}|\d+\w+)?/g, '').trim();
         if (text && text !== 'pt' && text !== '\\vspace1pt') {
-          if (cl.contains('cv-summary')) {
+          if (cl.contains('cv-summary') || text.length > 150) {
             bodyLatex += `{\\fontsize{9.5pt}{12pt}\\selectfont\n${text}\n}\\par\n\n`;
           } else {
             bodyLatex += `${text} \\\\\n`;
@@ -697,23 +846,39 @@ function serializeVisualToLatex() {
 }
 
 function deformatHtmlToLatex(html) {
+  if (!html) return '';
   let s = html;
-  s = s.replace(/<strong>(.*?)<\/strong>/gi, '\\textbf{$1}');
-  s = s.replace(/<b>(.*?)<\/b>/gi, '\\textbf{$1}');
-  s = s.replace(/<em>(.*?)<\/em>/gi, '\\textit{$1}');
-  s = s.replace(/<i>(.*?)<\/i>/gi, '\\textit{$1}');
-  s = s.replace(/<sup>(.*?)<\/sup>/gi, '$^{$1}$');
-  s = s.replace(/<a\s+href="([^"]+)"[^>]*>(.*?)<\/a>/gi, '\\href{$1}{$2}');
+  s = s.replace(/<strong>([\s\S]*?)<\/strong>/gi, '\\textbf{$1}');
+  s = s.replace(/<b>([\s\S]*?)<\/b>/gi, '\\textbf{$1}');
+  s = s.replace(/<em>([\s\S]*?)<\/em>/gi, '\\textit{$1}');
+  s = s.replace(/<i>([\s\S]*?)<\/i>/gi, '\\textit{$1}');
+  s = s.replace(/<u>([\s\S]*?)<\/u>/gi, '\\underline{$1}');
+  s = s.replace(/<s>([\s\S]*?)<\/s>/gi, '$1');
+  s = s.replace(/<strike>([\s\S]*?)<\/strike>/gi, '$1');
+  s = s.replace(/<sup>([\s\S]*?)<\/sup>/gi, (m, p1) => `$^{${p1}}$`);
+  s = s.replace(/<sub>([\s\S]*?)<\/sub>/gi, (m, p1) => `$_{${p1}}$`);
+  s = s.replace(/<a\s+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, '\\href{$1}{$2}');
+  s = s.replace(/<br\s*\/?>/gi, ' \\\\\n');
   s = s.replace(/&amp;/g, '\\&');
   s = s.replace(/&lt;/g, '<');
   s = s.replace(/&gt;/g, '>');
+  s = s.replace(/&nbsp;/g, ' ');
   s = s.replace(/–/g, '--');
   s = s.replace(/—/g, '---');
   s = s.replace(/ · /g, ' $\\cdot$ ');
   s = s.replace(/·/g, ' $\\cdot$ ');
-  s = s.replace(/\$(\d+)/g, '\\$$1');
+  // Use function replacement to avoid JS $1 backreference bug!
+  s = s.replace(/(^|[^\\])\$(\d[\d,]*(?:\.\d+)?)/g, (match, prefix, num) => prefix + '\\$' + num);
+  s = s.replace(/(^|[^\\])%/g, '$1\\%');
   return s.trim();
 }
+
+// Prevent toolbar buttons from stealing text selection focus
+document.querySelectorAll('.v-btn').forEach(btn => {
+  btn.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+  });
+});
 
 // LibreOffice / Word Style Visual Toolbar Actions
 if (elVFormatSelect) {
@@ -728,6 +893,15 @@ if (elVFormatSelect) {
     } else if (val === 'h3') {
       document.execCommand('formatBlock', false, '<h3>');
     }
+    elVisualBody.focus();
+  });
+}
+
+if (elVFontSelect) {
+  elVFontSelect.addEventListener('change', (e) => {
+    const val = e.target.value;
+    const font = val === 'monospace' ? 'Courier New, monospace' : val === 'sans-serif' ? 'Helvetica, Arial, sans-serif' : 'Times New Roman, serif';
+    document.execCommand('fontName', false, font);
     elVisualBody.focus();
   });
 }
@@ -756,6 +930,20 @@ if (elVBtnUnderline) {
 if (elVBtnStrike) {
   elVBtnStrike.addEventListener('click', () => {
     document.execCommand('strikeThrough', false, null);
+    elVisualBody.focus();
+  });
+}
+
+if (elVBtnSup) {
+  elVBtnSup.addEventListener('click', () => {
+    document.execCommand('superscript', false, null);
+    elVisualBody.focus();
+  });
+}
+
+if (elVBtnSub) {
+  elVBtnSub.addEventListener('click', () => {
+    document.execCommand('subscript', false, null);
     elVisualBody.focus();
   });
 }
@@ -809,9 +997,44 @@ if (elVBtnNumber) {
   });
 }
 
+if (elVBtnOutdent) {
+  elVBtnOutdent.addEventListener('click', () => {
+    document.execCommand('outdent', false, null);
+    elVisualBody.focus();
+  });
+}
+
+if (elVBtnIndent) {
+  elVBtnIndent.addEventListener('click', () => {
+    document.execCommand('indent', false, null);
+    elVisualBody.focus();
+  });
+}
+
 if (elVBtnHr) {
   elVBtnHr.addEventListener('click', () => {
     document.execCommand('insertHorizontalRule', false, null);
+    elVisualBody.focus();
+  });
+}
+
+if (elVBtnLink) {
+  elVBtnLink.addEventListener('click', () => {
+    const selection = window.getSelection();
+    const selectedText = selection ? selection.toString().trim() : '';
+    const url = prompt('Enter link URL (e.g. https://... or mailto:...):', 'https://');
+    if (url && url !== 'https://') {
+      const label = selectedText || prompt('Enter link text:', url) || url;
+      document.execCommand('insertHTML', false, `<a href="${escapeHtml(url)}" target="_blank">${escapeHtml(label)}</a>`);
+    }
+    elVisualBody.focus();
+  });
+}
+
+if (elVBtnInsertEntry) {
+  elVBtnInsertEntry.addEventListener('click', () => {
+    const entryHtml = `<div class="cv-entry-row"><span class="cv-entry-title"><strong>New Role / Degree</strong>, Organization, Location</span><span class="cv-entry-date">Month Year – Month Year</span></div><p class="cv-subline">Key research, project, or training description...</p>`;
+    document.execCommand('insertHTML', false, entryHtml);
     elVisualBody.focus();
   });
 }
@@ -822,6 +1045,36 @@ if (elVBtnClear) {
     elVisualBody.focus();
   });
 }
+
+// Smooth Visual Editing & ContentEditable Enter key handling
+document.execCommand('defaultParagraphSeparator', false, 'p');
+
+elVisualBody.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount) {
+      const anchor = sel.anchorNode;
+      const parentEl = anchor ? (anchor.nodeType === Node.TEXT_NODE ? anchor.parentElement : anchor) : null;
+      if (parentEl && (parentEl.closest('li') || parentEl.closest('td') || parentEl.closest('th'))) {
+        return; // Allow list and table cells normal Enter behavior
+      }
+    }
+    document.execCommand('defaultParagraphSeparator', false, 'p');
+  }
+});
+
+let visualAutoSaveTimer = null;
+elVisualBody.addEventListener('input', () => {
+  updateVisualSelectionSnippet();
+  if (visualAutoSaveTimer) clearTimeout(visualAutoSaveTimer);
+  visualAutoSaveTimer = setTimeout(() => {
+    saveContentOnly();
+  }, 1200);
+});
+
+elVisualBody.addEventListener('mouseup', updateVisualSelectionSnippet);
+elVisualBody.addEventListener('keyup', updateVisualSelectionSnippet);
+elVisualBody.addEventListener('click', updateVisualSelectionSnippet);
 
 // File info and content loading
 async function loadFile() {
@@ -863,6 +1116,8 @@ function getCurrentContent() {
   }
 }
 
+let userDismissedLogs = false;
+
 // Compile
 async function triggerCompile() {
   if (isCompiling) return;
@@ -894,12 +1149,16 @@ async function triggerCompile() {
 
       if (data.errors.length === 0) {
         elLogDrawer.classList.add('collapsed');
+        elLogDrawer.style.display = 'none';
       }
     } else {
       setStatus('error', `Errors (${data.errors.length})`);
       renderIssues(data.errors, data.warnings);
-      elLogDrawer.classList.remove('collapsed');
-      switchLogTab('tab-errors');
+      if (!userDismissedLogs) {
+        elLogDrawer.style.display = 'flex';
+        elLogDrawer.classList.remove('collapsed');
+        switchLogTab('tab-errors');
+      }
     }
   } catch (err) {
     isCompiling = false;
@@ -1002,15 +1261,30 @@ document.querySelectorAll('.log-tabs .tab-btn').forEach(btn => {
   });
 });
 
-elBtnToggleLog.addEventListener('click', () => {
-  elLogDrawer.classList.toggle('collapsed');
+elBtnToggleLog.addEventListener('click', (e) => {
+  e.preventDefault();
+  if (elLogDrawer.classList.contains('collapsed') || elLogDrawer.style.display === 'none') {
+    elLogDrawer.style.display = 'flex';
+    elLogDrawer.classList.remove('collapsed');
+    userDismissedLogs = false;
+  } else {
+    elLogDrawer.classList.add('collapsed');
+    elLogDrawer.style.display = 'none';
+  }
 });
 
-elBtnCloseLog.addEventListener('click', () => {
+elBtnCloseLog.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
   elLogDrawer.classList.add('collapsed');
+  elLogDrawer.style.display = 'none';
+  userDismissedLogs = true;
 });
 
-elBtnRecompile.addEventListener('click', triggerCompile);
+elBtnRecompile.addEventListener('click', () => {
+  userDismissedLogs = false;
+  triggerCompile();
+});
 
 elBtnDownloadPdf.addEventListener('click', () => {
   const link = document.createElement('a');

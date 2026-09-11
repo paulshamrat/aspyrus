@@ -247,6 +247,12 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.visual-toolbar::-webkit-scrollbar {
+  display: none;
 }
 
 .visual-toolbar.disabled {
@@ -259,12 +265,15 @@ body {
   border: 1px solid transparent;
   border-radius: 4px;
   color: var(--text-main);
-  padding: 4px 8px;
+  padding: 4px 7px;
   font-size: 13px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  white-space: nowrap;
+  user-select: none;
+  transition: all 0.15s ease;
 }
 
 .v-btn:hover {
@@ -272,11 +281,33 @@ body {
   border-color: var(--border-light);
 }
 
+.v-btn.active {
+  background: var(--btn-primary);
+  color: #fff;
+  border-color: var(--btn-primary);
+}
+
+.v-btn-action {
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--badge-bg);
+  border: 1px solid var(--border-color);
+  padding: 3px 8px;
+  color: #3b82f6;
+}
+
+.v-btn-action:hover {
+  background: #3b82f6;
+  color: #ffffff;
+  border-color: #3b82f6;
+}
+
 .v-sep {
   width: 1px;
   height: 18px;
   background: var(--border-color);
   margin: 0 4px;
+  flex-shrink: 0;
 }
 
 .v-select {
@@ -292,6 +323,15 @@ body {
 
 .v-select:hover {
   border-color: var(--border-light);
+}
+
+.visual-highlight-jump {
+  animation: flashHighlight 1.5s ease-out;
+}
+
+@keyframes flashHighlight {
+  0% { background-color: rgba(59, 130, 246, 0.35); }
+  100% { background-color: transparent; }
 }
 
 /* Overleaf Mode Toggle Capsule */
@@ -712,15 +752,18 @@ body {
   height: 260px;
   background: var(--drawer-bg);
   border-top: 1px solid var(--border-color);
-  z-index: 20;
+  z-index: 1000;
   display: flex;
   flex-direction: column;
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 -4px 12px rgba(0,0,0,0.3);
+  box-shadow: 0 -4px 16px rgba(0,0,0,0.4);
 }
 
 .log-drawer.collapsed {
-  transform: translateY(100%);
+  transform: translateY(100%) !important;
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 .log-drawer-header {
@@ -767,12 +810,19 @@ body {
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-size: 16px;
+  font-size: 18px;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: all 0.15s ease;
 }
 
 .btn-close:hover {
+  background: rgba(255, 255, 255, 0.12);
   color: var(--text-main);
 }
 

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LocalLeaf — Offline LaTeX Editor</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22 100%22><text y=%22.9em%22 font-size=%2290%22>🍃</text></svg>">
-  <link rel="stylesheet" href="/static/style.css?v=20260911_3">
+  <link rel="stylesheet" href="/static/style.css?v=20260911_5">
   <link rel="stylesheet" href="/monaco/vs/editor/editor.main.css">
 </head>
 <body class="theme-dark">
@@ -101,28 +101,48 @@
           <button class="v-btn" id="v-btn-redo" title="Redo (Ctrl+Y)">↷</button>
           <div class="v-sep"></div>
 
+          <!-- Paragraph style -->
           <select id="v-format-select" class="v-select" title="Paragraph Style">
             <option value="p">Normal Text</option>
-            <option value="h1">Title (H1)</option>
+            <option value="h1">Document Title (H1)</option>
             <option value="h2">Section Heading (H2)</option>
             <option value="h3">Subheading (H3)</option>
           </select>
+
+          <!-- Font family -->
+          <select id="v-font-select" class="v-select" title="Font Family">
+            <option value="serif" selected>Serif (Times)</option>
+            <option value="sans-serif">Sans-Serif</option>
+            <option value="monospace">Monospace</option>
+          </select>
           <div class="v-sep"></div>
 
+          <!-- Text Formatting -->
           <button class="v-btn font-bold" id="v-btn-bold" title="Bold (Ctrl+B)"><b>B</b></button>
           <button class="v-btn font-italic" id="v-btn-italic" title="Italic (Ctrl+I)"><i>I</i></button>
           <button class="v-btn" id="v-btn-underline" title="Underline (Ctrl+U)"><u>U</u></button>
           <button class="v-btn" id="v-btn-strike" title="Strikethrough"><s>S</s></button>
+          <button class="v-btn" id="v-btn-sup" title="Superscript (e.g. *)">X<sup>2</sup></button>
+          <button class="v-btn" id="v-btn-sub" title="Subscript">X<sub>2</sub></button>
           <div class="v-sep"></div>
 
+          <!-- Text alignment -->
           <button class="v-btn" id="v-btn-align-left" title="Align Left">⇤</button>
           <button class="v-btn" id="v-btn-align-center" title="Align Center">≡</button>
           <button class="v-btn" id="v-btn-align-right" title="Align Right">⇥</button>
           <div class="v-sep"></div>
 
+          <!-- Lists & Indentation -->
           <button class="v-btn" id="v-btn-bullet" title="Bullet List">• ≡</button>
           <button class="v-btn" id="v-btn-number" title="Numbered List">1. ≡</button>
+          <button class="v-btn" id="v-btn-outdent" title="Decrease Indent (Shift+Tab)">⇤|</button>
+          <button class="v-btn" id="v-btn-indent" title="Increase Indent (Tab)">|⇥</button>
+          <div class="v-sep"></div>
+
+          <!-- Insert tools -->
           <button class="v-btn" id="v-btn-hr" title="Insert Horizontal Rule">―</button>
+          <button class="v-btn" id="v-btn-link" title="Insert Hyperlink (Ctrl+K)">🔗</button>
+          <button class="v-btn v-btn-action" id="v-btn-insert-entry" title="Insert CV Entry (Title + Date)">+ Entry</button>
           <div class="v-sep"></div>
 
           <button class="v-btn" id="v-btn-clear" title="Clear Formatting">T̸</button>
@@ -233,6 +253,6 @@
 
   <!-- PDF.js & Monaco Scripts -->
   <script src="/monaco/vs/loader.js"></script>
-  <script type="module" src="/static/app.js?v=20260911_3"></script>
+  <script type="module" src="/static/app.js?v=20260911_5"></script>
 </body>
 </html>
