@@ -1181,8 +1181,37 @@ body {
   max-width: 880px;
 }
 
-.btn-toggle-pdf.active {
+.editor-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btn-toggle-pdf {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: var(--badge-bg);
-  color: var(--accent-blue);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-toggle-pdf:hover {
+  background: var(--border-light);
+  border-color: var(--border-light);
+  color: var(--text-main);
+}
+
+.btn-toggle-pdf.active {
+  background: rgba(49, 130, 206, 0.2);
+  color: #63b3ed;
   border-color: var(--accent-blue);
 }
