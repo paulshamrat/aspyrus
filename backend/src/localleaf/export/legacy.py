@@ -26,6 +26,7 @@ import re
 import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
+from xml.sax.saxutils import escape
 
 import docx
 import pypandoc
@@ -216,7 +217,7 @@ def add_hyperlink(paragraph, url: str, text: str, size: float = 9.5) -> None:
         f'<w:r xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:rPr>'
         f'<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>'
         f'<w:color w:val="004F87"/><w:u w:val="single"/><w:sz w:val="{int(size * 2)}"/>'
-        f"</w:rPr><w:t>{text}</w:t></w:r>"
+        f"</w:rPr><w:t>{escape(text)}</w:t></w:r>"
     )
     hyperlink.append(new_run)
     paragraph._p.append(hyperlink)
@@ -230,79 +231,98 @@ def add_runs(
     base_italic: bool = False,
     base_underline: bool = False,
 ) -> None:
-    idx = 0
-    while idx < len(text):
-        if text[idx : idx + 8] == r"\textbf{":
-            inner, next_idx = parse_brace_block(text, idx + 7)
-            if inner is not None:
-                add_runs(
-                    paragraph,
-                    inner,
-                    base_size=base_size,
-                    base_bold=True,
-                    base_italic=base_italic,
-                    base_underline=base_underline,
-                )
-                idx = next_idx
-                continue
-        elif text[idx : idx + 8] == r"\textit{":
-            inner, next_idx = parse_brace_block(text, idx + 7)
-            if inner is not None:
-                add_runs(
-                    paragraph,
-                    inner,
-                    base_size=base_size,
-                    base_bold=base_bold,
-                    base_italic=True,
-                    base_underline=base_underline,
-                )
-                idx = next_idx
-                continue
-        elif text[idx : idx + 11] == r"\underline{":
-            inner, next_idx = parse_brace_block(text, idx + 10)
-            if inner is not None:
-                add_runs(
-                    paragraph,
-                    inner,
-                    base_size=base_size,
-                    base_bold=base_bold,
-                    base_italic=base_italic,
-                    base_underline=True,
-                )
-                idx = next_idx
-                continue
-        elif text[idx : idx + 6] == r"\href{":
-            url, next_idx = parse_brace_block(text, idx + 5)
-            if url is not None and next_idx < len(text) and text[next_idx] == "{":
-                label, next_idx2 = parse_brace_block(text, next_idx)
-                if label is not None:
-                    add_hyperlink(paragraph, url, clean_cv_text(label), size=base_size)
-                    idx = next_idx2
+    def visit(
+        source,
+        size,
+        bold,
+        italic,
+        underline,
+        family="Times New Roman",
+        strike=False,
+        superscript=False,
+        subscript=False,
+    ):
+        idx = 0
+
+        def emit(value):
+            value = clean_cv_text(value)
+            if not value:
+                return
+            run = paragraph.add_run(value)
+            run.bold, run.italic, run.underline = bold, italic, underline
+            run.font.name, run.font.size = family, Pt(size)
+            run.font.strike = strike
+            run.font.superscript, run.font.subscript = superscript, subscript
+            run.font.color.rgb = RGBColor(0, 0, 0)
+
+        while idx < len(source):
+            if source[idx] == "{":
+                inner, end = parse_brace_block(source, idx)
+                if inner is not None:
+                    visit(
+                        inner, size, bold, italic, underline, family, strike, superscript, subscript
+                    )
+                    idx = end
                     continue
-        elif text[idx : idx + 5] == r"\url{":
-            url, next_idx = parse_brace_block(text, idx + 4)
-            if url is not None:
-                add_hyperlink(paragraph, url, clean_cv_text(url), size=base_size)
-                idx = next_idx
+            size_match = re.match(
+                r"\\fontsize\{([\d.]+)pt\}\{([\d.]+)pt\}\\selectfont\s*", source[idx:]
+            )
+            if size_match:
+                size = float(size_match.group(1))
+                paragraph.paragraph_format.line_spacing = Pt(float(size_match.group(2)))
+                idx += size_match.end()
                 continue
+            family_match = re.match(r"\\(ttfamily|sffamily|rmfamily)\s*", source[idx:])
+            if family_match:
+                family = {
+                    "ttfamily": "Courier New",
+                    "sffamily": "Arial",
+                    "rmfamily": "Times New Roman",
+                }[family_match.group(1)]
+                idx += family_match.end()
+                continue
+            match = re.match(
+                r"\\(textbf|textit|emph|underline|sout|textsuperscript|textsubscript|href|url)\{",
+                source[idx:],
+            )
+            if match:
+                command = match.group(1)
+                inner, end = parse_brace_block(source, idx + match.end() - 1)
+                if inner is not None:
+                    if command == "href":
+                        label, label_end = parse_brace_block(source, end)
+                        if label is not None:
+                            add_hyperlink(paragraph, inner, clean_cv_text(label), size=size)
+                            idx = label_end
+                            continue
+                    elif command == "url":
+                        add_hyperlink(paragraph, inner, clean_cv_text(inner), size=size)
+                    else:
+                        visit(
+                            inner,
+                            size,
+                            bold or command == "textbf",
+                            italic or command in {"textit", "emph"},
+                            underline or command == "underline",
+                            family,
+                            strike or command == "sout",
+                            superscript or command == "textsuperscript",
+                            subscript or command == "textsubscript",
+                        )
+                    idx = end
+                    continue
+            # Consume an ordinary character or escaped pair without revisiting malformed commands.
+            if source[idx] == "\\" and idx + 1 < len(source) and source[idx + 1] in "%&#_$":
+                emit(source[idx : idx + 2])
+                idx += 2
+            else:
+                end = idx + 1
+                while end < len(source) and source[end] not in "{\\":
+                    end += 1
+                emit(source[idx:end])
+                idx = end
 
-        next_cmd = len(text)
-        for cmd in (r"\textbf{", r"\textit{", r"\underline{", r"\href{", r"\url{"):
-            cpos = text.find(cmd, idx)
-            if cpos != -1 and cpos < next_cmd:
-                next_cmd = cpos
-
-        chunk = text[idx:next_cmd]
-        c = clean_cv_text(chunk)
-        if c:
-            r = paragraph.add_run(c)
-            r.bold = base_bold
-            r.italic = base_italic
-            r.underline = base_underline
-            r.font.name = "Times New Roman"
-            r.font.size = Pt(base_size)
-            r.font.color.rgb = RGBColor(0, 0, 0)
-        idx = next_cmd
+    visit(text, base_size, base_bold, base_italic, base_underline)
 
 
 def is_cv_document(raw_tex: str) -> bool:
@@ -386,7 +406,6 @@ def export_latex_cv_to_docx(
         while single_if.search(body):
             body = single_if.sub(r"\1" if is_bps else "", body)
         body = re.sub(r"\\(ifbps|else|fi)\b", "", body)
-        body = unwrap_fontsize(body)
 
         doc = Document()
         for sec in doc.sections:
@@ -433,22 +452,60 @@ def export_latex_cv_to_docx(
         normal_style.paragraph_format.space_before = Pt(0)
 
         cleaned_lines = []
+        pending = ""
+        depth = 0
         for line in body.splitlines():
             ls = line.strip()
             if not ls or ls.startswith("%"):
                 continue
             if ls.startswith(("\\thispagestyle", "\\setlength", "\\renewcommand", "\\pagestyle")):
                 continue
-            cleaned_lines.append(line)
+            pending += (" " if pending else "") + ls
+            unescaped = re.sub(r"\\[{}]", "", ls)
+            depth += unescaped.count("{") - unescaped.count("}")
+            if depth <= 0:
+                cleaned_lines.append(pending)
+                pending = ""
+                depth = 0
+        if pending:
+            cleaned_lines.append(pending)
 
         lines = cleaned_lines
         i = 0
+        previous_count = 0
+        previous_alignment = None
+
+        def apply_alignment():
+            if previous_alignment is not None:
+                for paragraph in doc.paragraphs[previous_count:]:
+                    paragraph.alignment = previous_alignment
+
         while i < len(lines):
+            apply_alignment()
+            previous_count = len(doc.paragraphs)
+            previous_alignment = None
             line = lines[i].strip()
             if not line:
                 i += 1
                 continue
 
+            alignment = re.match(
+                r"^\{\\(centering|raggedleft|raggedright|justifying)\s+([\s\S]*)\}$", line
+            )
+            if alignment:
+                previous_alignment = {
+                    "centering": WD_ALIGN_PARAGRAPH.CENTER,
+                    "raggedleft": WD_ALIGN_PARAGRAPH.RIGHT,
+                    "raggedright": WD_ALIGN_PARAGRAPH.LEFT,
+                    "justifying": WD_ALIGN_PARAGRAPH.JUSTIFY,
+                }[alignment.group(1)]
+                line = re.sub(r"\\par\s*$", "", alignment.group(2)).strip()
+            spacing = re.fullmatch(r"\\vspace\{([\d.]+)pt\}", line)
+            if spacing:
+                if doc.paragraphs:
+                    doc.paragraphs[-1].paragraph_format.space_after = Pt(float(spacing.group(1)))
+                i += 1
+                continue
             if line in (r"\newpage", r"\clearpage"):
                 doc.add_page_break()
                 i += 1
@@ -473,7 +530,7 @@ def export_latex_cv_to_docx(
                         hlines.append(hl)
                     i += 1
                 i += 1
-                header_raw = unwrap_fontsize("\n".join(hlines))
+                header_raw = "\n".join(hlines)
                 chunks = [
                     c.strip()
                     for c in re.split(r"\\\\(?:\s*\[[^\]]*\])?|\n\s*\n", header_raw)
@@ -497,16 +554,13 @@ def export_latex_cv_to_docx(
             # Section headings
             m_sec = re.match(r"^\\(?:cvsection|section\*?)\{(.*?)\}", line)
             if m_sec:
-                sec_title = clean_cv_text(m_sec.group(1)).strip()
+                sec_source, _ = parse_brace_block(line, line.index("{"))
+                sec_title = sec_source or m_sec.group(1)
                 p_sec = doc.add_paragraph()
                 p_sec.paragraph_format.space_before = Pt(3.5)
                 p_sec.paragraph_format.space_after = Pt(1.5)
                 p_sec.paragraph_format.keep_with_next = True
-                r_sec = p_sec.add_run(sec_title)
-                r_sec.bold = True
-                r_sec.font.name = "Times New Roman"
-                r_sec.font.size = Pt(10.8)
-                r_sec.font.color.rgb = RGBColor(0, 0, 0)
+                add_runs(p_sec, sec_title, base_size=10.8, base_bold=True)
                 i += 1
                 continue
 
@@ -668,6 +722,7 @@ def export_latex_cv_to_docx(
             add_runs(p_reg, clean_l, base_size=9.5)
             i += 1
 
+        apply_alignment()
         docx_path.parent.mkdir(parents=True, exist_ok=True)
         doc.save(docx_path)
         return True, f"High-fidelity CV successfully exported to {docx_path}"

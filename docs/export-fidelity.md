@@ -1,6 +1,6 @@
 # DOCX fidelity and manuscript migration
 
-The default pipeline invokes Pandoc on the original LaTeX with citation processing,
+For general documents, the pipeline invokes Pandoc on the original LaTeX with citation processing,
 using the source directory as its resource path and working directory. Native Word
 math is retained where Pandoc supports it. Conversion warnings appear in the UI.
 Compile PDF separately; DOCX does not convert the PDF.
@@ -13,8 +13,9 @@ conversion means a DOCX was produced, not that scientific/layout fidelity passed
 The pre-release CV and manuscript conversion implementation is retained in
 `backend/src/localleaf/export/legacy.py` with its existing local edits. Its margin
 and paragraph-spacing unit bug is fixed and covered by a regression test. It is
-not applied by the default export path. Install `.[legacy-export]` to experiment
-with its Python API; no stable compatibility guarantee is provided for that module.
+used for detected CVs by the restored export path. Its inline formatting now preserves
+font size, baseline spacing, bold/italic/underline, and aligned headings. The general
+scientific transformation pipeline remains opt-in through the Python API.
 
 Inspection of the earlier CDKL5 revision workflow identified reusable work around
 ion charges, numeric equations, unit exponents, reference resolution, figure

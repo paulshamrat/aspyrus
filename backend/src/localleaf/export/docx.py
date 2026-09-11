@@ -7,6 +7,16 @@ from pathlib import Path
 
 
 def export_latex_to_docx(tex_path, out_docx_path, build_dir=None, **options):
+    # CV documents use the handover's direct layout-aware exporter.
+    from .legacy import export_latex_cv_to_docx, is_cv_document
+
+    if is_cv_document(Path(tex_path).read_text(encoding="utf-8")):
+        return export_latex_cv_to_docx(
+            Path(tex_path),
+            Path(out_docx_path),
+            line_spacing=options.get("line_spacing", 1.15),
+            space_after_pt=options.get("space_after_pt", 2.0),
+        )
     executable = shutil.which("pandoc")
     if not executable:
         return False, "Install Pandoc and ensure it is on PATH to export DOCX."

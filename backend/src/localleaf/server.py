@@ -108,6 +108,26 @@ class Handler(BaseHTTPRequestHandler):
                             "engine": settings.get("engine", "pdflatex"),
                         }
                     )
+                elif parsed.path == "/api/browse":
+                    root, _ = project_settings(doc.target_file)
+                    files = []
+                    for file in root.rglob("*.tex"):
+                        if not set(file.parts) & {
+                            ".git",
+                            "node_modules",
+                            ".venv",
+                            ".localleaf_build",
+                        }:
+                            files.append(
+                                {
+                                    "path": str(file.resolve()),
+                                    "name": file.name,
+                                    "rel_path": str(file.relative_to(root)),
+                                }
+                            )
+                        if len(files) >= 500:
+                            break
+                    self.respond({"files": files})
                 elif parsed.path in {"/api/pdf", "/api/docx"}:
                     self.serve(doc.output_pdf if parsed.path.endswith("pdf") else doc.output_docx)
                 else:

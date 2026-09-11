@@ -1,13 +1,13 @@
-# LocalLeaf for VS Code (alpha)
+# LocalLeaf for VS Code
 
-Install the LocalLeaf Python backend first. Set `localleaf.pythonPath` to that
-Python interpreter, then open a `.tex` file and run **LocalLeaf: Open LaTeX Editor**.
+Install the LocalLeaf Python backend, open a `.tex` file, and run
+**LocalLeaf: Open LaTeX Editor**. The extension uses a workspace `.venv` when
+available, or system Python. Set `localleaf.pythonPath` to an installed backend's
+Python interpreter to use LocalLeaf across your CV and manuscript repositories.
 
-Each panel starts a private loopback backend and stops it when closed. Save your
-work before closing the panel. PDF compilation requires a LaTeX engine; DOCX
-export requires Pandoc. Local desktop workspaces are the tested target; remote
-SSH, containers, and web-only VS Code are not yet supported release targets.
+The handover CV editor is restored: rich visual editing, Code switching, optional
+PDF preview, formatting menus, and PDF/DOCX export. Each panel starts a private
+loopback backend and stops it when closed. Save before closing the panel.
 
-Visual editing supports ordinary text, basic headings, bold, italic, and underline.
-Other LaTeX stays in protected source blocks. PDF preview is a canvas preview;
-use an external PDF viewer for search, selection, and accessibility features.
+LaTeX compilation requires an installed engine. CV DOCX uses the direct exporter;
+general DOCX export requires Pandoc. Local desktop workspaces are the initial target.

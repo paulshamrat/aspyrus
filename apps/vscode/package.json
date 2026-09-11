@@ -2,7 +2,7 @@
   "name": "localleaf",
   "displayName": "LocalLeaf",
   "description": "Local visual LaTeX editing with PDF and DOCX export (alpha)",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "localleaf",
   "license": "MIT",
   "engines": {
@@ -25,8 +25,8 @@
       "properties": {
         "localleaf.pythonPath": {
           "type": "string",
-          "default": "python3",
-          "description": "Python interpreter with LocalLeaf installed (use python on Windows)."
+          "default": "",
+          "description": "Python with LocalLeaf installed. Empty selects workspace .venv, then system Python."
         }
       }
     },

@@ -4,7 +4,7 @@ LocalLeaf is an **early alpha** local LaTeX editor for the browser and VS Code.
 Edit ordinary text and headings visually, switch to source for complex LaTeX,
 compile a PDF, and export a DOCX. Documents stay in their existing projects.
 
-This release prioritizes source preservation over unrestricted visual formatting.
+The handover visual interface is restored, including its CV layout and formatting toolbar.
 It is not yet a full Overleaf or Word replacement. See [supported LaTeX](docs/supported-latex.md).
 
 ## Install from a checkout
@@ -38,7 +38,7 @@ Build the backend assets and install the Python package as above, then:
 npm run package:extension
 ```
 
-Install the resulting `apps/vscode/localleaf-0.1.0.vsix` using VS Code's
+Install the resulting `apps/vscode/localleaf-0.1.1.vsix` using VS Code's
 **Extensions: Install from VSIX** command. Set `localleaf.pythonPath` to the
 absolute path of your environment's Python. Open a `.tex` file and run
 **LocalLeaf: Open LaTeX Editor**. Each panel owns a local backend process.
@@ -48,16 +48,16 @@ remote/web workspaces have not been validated.
 ## Editing and exports
 
 - **Ctrl/Cmd+S:** save. **Ctrl/Cmd+Enter:** save and compile. **Alt+Z:** code word wrap.
-- Visual mode supports text, basic headings, bold, italic, and underline.
-- Complex LaTeX appears as preserved source blocks. Double-click one to edit in Code.
+- Visual mode renders CV headers, dated entries, tables, lists, and headings.
+- The original toolbar provides font, size, alignment, spacing, and inline formatting.
+- Unchanged visual blocks preserve their original source. Unsupported structures remain source-backed; use Code for those.
 - Saves detect external changes and refuse to overwrite them. Copy your unsaved
   edits before choosing Reload if you need to reconcile a conflict.
 - PDF preview can be hidden and zoomed. It is canvas-based; use an external viewer
   for PDF text selection, search, and accessibility tools.
-- DOCX uses Pandoc and retains native equations where supported. Layout may differ
+- CV DOCX uses the original direct exporter; general documents use Pandoc. Layout may differ
   from PDF; inspect conversion messages and the exported document.
-- Manual saving only in this alpha. Unsupported legacy toolbar actions are removed
-  rather than displayed as working features.
+- Visual changes autosave; the Auto-compile option controls automatic PDF compilation.
 
 Build artifacts default to `.localleaf_build/` beside the source. An optional
 `localleaf.toml` supports other layouts, including `scripts/` and `data/`:

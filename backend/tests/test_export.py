@@ -43,3 +43,29 @@ def test_pdf_compilation(tmp_path):
     result = doc.compile()
     assert result["success"], result["log"]
     assert doc.output_pdf.read_bytes().startswith(b"%PDF")
+
+
+def test_cv_visual_formatting_exports_to_word(tmp_path):
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from localleaf.export.legacy import export_latex_cv_to_docx
+
+    source = tmp_path / "cv.tex"
+    source.write_text(r"""\documentclass{article}
+\newcommand{\cvsection}[1]{\section*{#1}}
+\begin{document}
+{\raggedleft \cvsection{Education}
+\par}
+\vspace{4pt}
+{\fontsize{14pt}{18pt}\selectfont\textbf{Example formatted paragraph}}\par
+\end{document}""")
+    output = tmp_path / "cv.docx"
+    success, message = export_latex_cv_to_docx(source, output)
+    assert success, message
+    document = Document(output)
+    heading = next(p for p in document.paragraphs if p.text == "Education")
+    assert heading.alignment == WD_ALIGN_PARAGRAPH.RIGHT
+    assert heading.paragraph_format.space_after.pt == 4
+    paragraph = next(p for p in document.paragraphs if "Example formatted" in p.text)
+    assert all(run.font.size.pt == 14 for run in paragraph.runs)
+    assert all(run.bold for run in paragraph.runs)
+    assert paragraph.paragraph_format.line_spacing.pt == 18

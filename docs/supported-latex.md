@@ -1,21 +1,28 @@
-# Supported LaTeX in visual mode
+# Visual editing and source agreement
 
-Editable regions are ordinary single source lines inside the document body and
-single-line section, subsection, and subsubsection headings. Basic flat bold,
-italic, underline, and escaped punctuation are rendered visually. Selected text
-can be formatted using the three toolbar controls.
+The handover editor is restored as the default interface. Visual mode renders CV
+contact headers, section headings, dated entries, two-column tables, lists, and
+inline formatting. The original menus, font controls, alignment, spacing, zoom,
+Code/Visual switches, optional PDF preview, and export actions are retained.
 
-Other source stays visible as protected blocks, including preambles, comments,
-mathematics, nested formatting, tables, lists, conditional branches, and unknown
-commands. Double-click a protected block to edit source. Complex CV macros may
-therefore appear mostly as source in this alpha.
+Each rendered block retains its original LaTeX. Unchanged blocks are emitted
+exactly as loaded. Editing one block updates that block while preserving other
+source, comments, preamble, table column declarations, and custom commands.
+Math and unsupported inline commands remain noneditable source-backed tokens.
+Unsupported environments and conditionals remain protected source blocks.
 
-Enter inside an editable region inserts a space. Use Code to add paragraphs,
-headings, or structural commands. Pasted content is treated as plain text.
-No-op visual editing preserves the original source, including CRLF line endings.
-Formatting a region can normalize its inline representation. Undo for toolbar
-formatting is not yet a complete document-level history; use source undo or reload
-before saving to discard unwanted visual changes.
+The toolbar serializes known formatting to LaTeX, including font sizes, line
+spacing, paragraph spacing, alignment, bold, italic, underline, strike-through,
+superscripts, and subscripts. Strike-through and justified alignment add their
+required LaTeX packages when needed. Compilation remains the authority for final
+layout; the visual view does not reproduce LaTeX pagination exactly.
 
-PDF preview is authoritative for LaTeX layout. The visual view is an editing aid,
-not a pixel-identical typesetting preview. DOCX is a separate conversion target.
+The local demo is an acceptance case: no-op preservation, CV structure, a visual
+alignment edit, successful PDF compilation, and direct CV DOCX export have been
+checked. DOM integration tests check UI startup and mode switching. Full live
+VS Code interaction and all toolbar combinations still require interactive QA.
+
+Editing nested/custom structures, deleting protected blocks, or applying complex
+formatting across several source groups can require Code mode. The editor refuses
+to save when a protected source block has been removed. Rich visual undo remains
+browser-based; the source editor retains Monaco's undo for direct code edits.

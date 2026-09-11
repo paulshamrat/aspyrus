@@ -1,5 +1,7 @@
 const vscode = require('vscode');
 const { spawn } = require('node:child_process');
+const { existsSync } = require('node:fs');
+const path = require('node:path');
 
 function activate(context) {
   const output = vscode.window.createOutputChannel('LocalLeaf');
@@ -18,8 +20,23 @@ function activate(context) {
         !(await document.save())
       )
         return;
-      const python = vscode.workspace.getConfiguration('localleaf').get('pythonPath', 'python3');
-      const process = spawn(
+      const configured = vscode.workspace.getConfiguration('localleaf').get('pythonPath', '');
+      const root = vscode.workspace.getWorkspaceFolder(target)?.uri.fsPath;
+      const localPython = root
+        ? path.join(
+            root,
+            '.venv',
+            process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python',
+          )
+        : '';
+      const python =
+        configured ||
+        (localPython && existsSync(localPython)
+          ? localPython
+          : process.platform === 'win32'
+            ? 'python'
+            : 'python3');
+      const backend = spawn(
         python,
         ['-m', 'localleaf', target.fsPath, '--no-browser', '--port', '0'],
         { stdio: ['ignore', 'pipe', 'pipe'] },
@@ -31,18 +48,18 @@ function activate(context) {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        process.kill();
+        backend.kill();
         output.appendLine(message);
         vscode.window.showErrorMessage(
           'LocalLeaf could not start. Install the backend and configure localleaf.pythonPath. See LocalLeaf output.',
         );
       }
-      process.on('error', (e) => fail(e.message));
-      process.on('exit', (code) => {
+      backend.on('error', (e) => fail(e.message));
+      backend.on('exit', (code) => {
         if (!settled) fail(`Backend exited (${code}).`);
       });
-      process.stderr.on('data', (data) => output.append(data.toString()));
-      process.stdout.on('data', async (data) => {
+      backend.stderr.on('data', (data) => output.append(data.toString()));
+      backend.stdout.on('data', async (data) => {
         output.append(data.toString());
         buffer += data.toString();
         const match = buffer.match(/LOCALLEAF_URL=(http:\/\/127\.0\.0\.1:\d+\/[^\r\n]*)/);
@@ -63,14 +80,14 @@ function activate(context) {
             { enableScripts: true, retainContextWhenHidden: true },
           );
           panel.webview.html = `<!doctype html><html><head><meta charset="utf-8"><style>html,body,iframe{margin:0;width:100%;height:100%;border:0;overflow:hidden}</style></head><body><iframe title="LocalLeaf editor" src="${url}"></iframe></body></html>`;
-          panel.onDidDispose(() => process.kill());
-          context.subscriptions.push(panel, { dispose: () => process.kill() });
+          panel.onDidDispose(() => backend.kill());
+          context.subscriptions.push(panel, { dispose: () => backend.kill() });
         } catch (e) {
-          process.kill();
+          backend.kill();
           vscode.window.showErrorMessage(e.message);
         }
       });
-      context.subscriptions.push({ dispose: () => process.kill() });
+      context.subscriptions.push({ dispose: () => backend.kill() });
     }),
   );
 }

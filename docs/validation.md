@@ -22,3 +22,22 @@ the development session. Run the manual release checklist before publishing.
 
 These checks support an early alpha review, not a claim of full visual editing or
 scientific export fidelity. CI repeats the automated checks on GitHub.
+
+## Handover restoration
+
+The original menu, toolbar, split editor, themes, and PDF controls are restored.
+Additional DOM tests check UI initialization, Code/Visual switching, CV structure,
+source preservation, alignment, and paragraph spacing. The actual ignored demo
+was read and tested locally without modifying it: all three tables and its lists
+render, the no-op round trip matches exactly, and an edited copy compiles to PDF
+and exports through the original CV DOCX engine.
+
+The VSIX is now version 0.1.1. The extension can discover a workspace `.venv`;
+other projects can use an explicitly configured `localleaf.pythonPath`.
+
+The restored CV exporter has a regression check for font size, bold text, baseline
+spacing, right-aligned headings, and spacing after a heading. The edited demo
+exports three tables and contains no leaked cvsection/fontsize/selectfont markup.
+DOCX visual page rendering has not been completed: this session does not expose
+the document skill's managed rendering dependencies. Structural checks are not
+a claim of pixel-identical layout.
