@@ -591,6 +591,8 @@ body {
   padding: 10px 18px 40px 18px;
   display: flex;
   justify-content: center;
+  overflow-y: auto;
+  overflow-x: auto;
 }
 
 .visual-body {
@@ -607,10 +609,37 @@ body {
   line-height: 1.45;
   color: var(--text-main);
   box-shadow: 0 3px 12px rgba(0,0,0,0.25);
+  transform-origin: top center;
+  transition: transform 0.1s ease-out;
 }
 
 .visual-body:focus {
   border-color: var(--accent-blue);
+}
+
+.visual-zoom-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 1px 3px;
+  user-select: none;
+}
+
+.visual-zoom-level {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 36px;
+  text-align: center;
+  cursor: pointer;
+  padding: 1px 2px;
+}
+
+.visual-zoom-level:hover {
+  color: var(--accent-blue);
 }
 
 /* Clean Formatted Visual Elements */

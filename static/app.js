@@ -104,12 +104,12 @@ function updatePdfVisibility(hide) {
   isPdfHidden = hide;
   if (isPdfHidden) {
     elWorkspace.classList.add('hide-pdf');
-    elBtnTogglePdfText.textContent = 'Show PDF';
-    elBtnTogglePdf.classList.add('active');
+    if (elBtnTogglePdfText) elBtnTogglePdfText.textContent = 'PDF';
+    elBtnTogglePdf.classList.remove('active');
   } else {
     elWorkspace.classList.remove('hide-pdf');
-    elBtnTogglePdfText.textContent = 'Hide PDF';
-    elBtnTogglePdf.classList.remove('active');
+    if (elBtnTogglePdfText) elBtnTogglePdfText.textContent = 'PDF';
+    elBtnTogglePdf.classList.add('active');
     if (currentPdfDoc) {
       renderPdfViewer();
     }
@@ -181,10 +181,24 @@ require(['vs/editor/editor.main'], function () {
     renderWhitespace: 'selection'
   });
 
-  let isWordWrapOn = true;
-  editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.KeyZ, function () {
-    isWordWrapOn = !isWordWrapOn;
-    editor.updateOptions({ wordWrap: isWordWrapOn ? 'on' : 'off' });
+  function toggleWordWrap() {
+    if (!editor) return;
+    const currentWrap = editor.getRawOptions ? editor.getRawOptions().wordWrap : editor.getOption(monaco.editor.EditorOption.wordWrap);
+    const nextWrap = (currentWrap === 'on') ? 'off' : 'on';
+    editor.updateOptions({ wordWrap: nextWrap });
+    setStatus('ready', `Word wrap: ${nextWrap}`);
+    setTimeout(() => setStatus('ready', 'Ready'), 1200);
+  }
+
+  editor.addAction({
+    id: 'toggle-word-wrap-action',
+    label: 'Toggle Word Wrap (Alt+Z)',
+    keybindings: [
+      monaco.KeyMod.Alt | monaco.KeyCode.KeyZ
+    ],
+    run: function () {
+      toggleWordWrap();
+    }
   });
 
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function () {
@@ -200,10 +214,9 @@ require(['vs/editor/editor.main'], function () {
   });
 
   window.addEventListener('keydown', (e) => {
-    if (e.altKey && e.key.toLowerCase() === 'z') {
+    if (e.altKey && (e.code === 'KeyZ' || (e.key && e.key.toLowerCase() === 'z'))) {
       e.preventDefault();
-      isWordWrapOn = !isWordWrapOn;
-      if (editor) editor.updateOptions({ wordWrap: isWordWrapOn ? 'on' : 'off' });
+      toggleWordWrap();
     } else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
       e.preventDefault();
       if (elAutoCompileChk.checked) {
@@ -339,6 +352,7 @@ function setEditorMode(mode) {
     currentMode = 'code';
     if (editor) {
       editor.layout();
+      editor.focus();
       if (lastActiveVisualSnippet) {
         setTimeout(() => jumpCodeEditorToSnippet(lastActiveVisualSnippet), 40);
       }
@@ -546,20 +560,23 @@ function parseLatexToCleanHtml(latex, isBps = true) {
       continue;
     }
 
-    // Handle Centered Header Block
-    if (line.includes('\\begin{center}')) {
-      let headerBlockHtml = '<div class="cv-header-block">';
+    // Handle Header Block (Center, Left, or Right)
+    if (line.includes('\\begin{center}') || line.includes('\\begin{flushleft}') || line.includes('\\begin{flushright}')) {
+      const isLeft = line.includes('\\begin{flushleft}');
+      const isRight = line.includes('\\begin{flushright}');
+      const alignVal = isLeft ? 'left' : (isRight ? 'right' : 'center');
+      let headerBlockHtml = `<div class="cv-header-block" style="text-align: ${alignVal};" data-align="${alignVal}">`;
       let name = '';
       let address = '';
       let contacts = [];
       let badge = '';
 
       i++;
-      while (i < lines.length && !lines[i].includes('\\end{center}')) {
+      while (i < lines.length && !lines[i].includes('\\end{center}') && !lines[i].includes('\\end{flushleft}') && !lines[i].includes('\\end{flushright}')) {
         let hline = lines[i].trim();
         if (hline && !hline.startsWith('%')) {
           let nameMatch = hline.match(/\\textbf\{([^{}]+)\}/);
-          if (nameMatch && hline.includes('16pt')) {
+          if (nameMatch && (hline.includes('16pt') || !name)) {
             name = nameMatch[1];
           } else if (hline.includes('Biophysical Society') || hline.includes('Student Member')) {
             badge = 'Biophysical Society (BPS) Student Member';
@@ -574,14 +591,14 @@ function parseLatexToCleanHtml(latex, isBps = true) {
         i++;
       }
 
-      if (name) headerBlockHtml += `<h1 class="cv-name">${escapeHtml(name)}</h1>`;
-      if (address) headerBlockHtml += `<div class="cv-address">${address}</div>`;
+      if (name) headerBlockHtml += `<h1 class="cv-name" style="text-align: ${alignVal};">${escapeHtml(name)}</h1>`;
+      if (address) headerBlockHtml += `<div class="cv-address" style="text-align: ${alignVal};">${address}</div>`;
       if (contacts.length > 0) {
         let contactText = contacts.join(' · ').replace(/(?: · )+/g, ' · ').replace(/^[·\s]+|[·\s]+$/g, '');
-        headerBlockHtml += `<div class="cv-contacts">${contactText}</div>`;
+        headerBlockHtml += `<div class="cv-contacts" style="text-align: ${alignVal};">${contactText}</div>`;
       }
       if (badge) {
-        headerBlockHtml += `<div class="cv-tag-container"><span class="cv-tag">${escapeHtml(badge)}</span></div>`;
+        headerBlockHtml += `<div class="cv-tag-container" style="text-align: ${alignVal};"><span class="cv-tag">${escapeHtml(badge)}</span></div>`;
       }
 
       headerBlockHtml += '</div>';
@@ -748,6 +765,20 @@ function cleanLatexTypography(str) {
   return s;
 }
 
+function getBlockAlignment(el) {
+  if (!el) return 'center';
+  if (el.dataset && el.dataset.align) return el.dataset.align;
+  if (el.style && el.style.textAlign) return el.style.textAlign;
+  if (el.getAttribute && el.getAttribute('align')) return el.getAttribute('align');
+  const innerLeft = el.querySelector('[style*="text-align: left"], [style*="text-align:start"], [align="left"]');
+  if (innerLeft) return 'left';
+  const innerRight = el.querySelector('[style*="text-align: right"], [style*="text-align:end"], [align="right"]');
+  if (innerRight) return 'right';
+  const innerCenter = el.querySelector('[style*="text-align: center"], [align="center"]');
+  if (innerCenter) return 'center';
+  return 'center';
+}
+
 // Serialize Visual DOM back to valid LaTeX without dropping user content
 function serializeVisualToLatex() {
   const preamble = elPreambleTextarea.value.trim();
@@ -769,34 +800,51 @@ function serializeVisualToLatex() {
 
       if (cl.contains('cv-header-block')) {
         const nameEl = node.querySelector('.cv-name');
-        const name = nameEl ? nameEl.textContent.trim() : 'Shamrat Kumar Paul';
+        const name = nameEl ? deformatHtmlToLatex(nameEl.innerHTML).trim() : 'Shamrat Kumar Paul';
         const addrEl = node.querySelector('.cv-address');
-        const addr = addrEl ? addrEl.textContent.trim() : '';
+        const addr = addrEl ? deformatHtmlToLatex(addrEl.innerHTML).trim() : '';
+        const contactsEl = node.querySelector('.cv-contacts');
         const hasBps = node.querySelector('.cv-tag') !== null;
 
-        bodyLatex += `\\begin{center}\n`;
+        const align = getBlockAlignment(node);
+        const envName = align === 'left' ? 'flushleft' : (align === 'right' ? 'flushright' : 'center');
+
+        bodyLatex += `\\begin{${envName}}\n`;
         bodyLatex += `    {\\fontsize{16pt}{18pt}\\selectfont\\textbf{${name}}} \\\\[2.5pt]\n`;
         if (addr) {
           bodyLatex += `    {\\fontsize{9.5pt}{11.5pt}\\selectfont ${addr}} \\\\[1.5pt]\n`;
         }
-        bodyLatex += `    {\\fontsize{9.5pt}{11.5pt}\\selectfont\n`;
-        bodyLatex += `        E-mail: \\href{mailto:shamrap@g.clemson.edu}{shamrap@g.clemson.edu} $\\;\\vert\\;$\n`;
-        bodyLatex += `        \\href{https://scholar.google.com/citations?user=51wTjJAAAAAJ}{Google Scholar} $\\;\\vert\\;$\n`;
-        bodyLatex += `        GitHub: \\href{https://github.com/paulshamrat}{https://github.com/paulshamrat/ColabMDA} $\\;\\vert\\;$\n`;
-        bodyLatex += `        Phone: (864) 624 2575\n`;
-        bodyLatex += `    }\n`;
+        if (contactsEl) {
+          let cText = deformatHtmlToLatex(contactsEl.innerHTML).trim();
+          cText = cText.replace(/\s*·\s*|\s*\|\s*/g, ' $\\;\\vert\\;$ ');
+          bodyLatex += `    {\\fontsize{9.5pt}{11.5pt}\\selectfont\n        ${cText}\n    }\n`;
+        } else {
+          bodyLatex += `    {\\fontsize{9.5pt}{11.5pt}\\selectfont\n`;
+          bodyLatex += `        E-mail: \\href{mailto:shamrap@g.clemson.edu}{shamrap@g.clemson.edu} $\\;\\vert\\;$\n`;
+          bodyLatex += `        \\href{https://scholar.google.com/citations?user=51wTjJAAAAAJ}{Google Scholar} $\\;\\vert\\;$\n`;
+          bodyLatex += `        GitHub: \\href{https://github.com/paulshamrat}{https://github.com/paulshamrat/ColabMDA} $\\;\\vert\\;$\n`;
+          bodyLatex += `        Phone: (864) 624 2575\n`;
+          bodyLatex += `    }\n`;
+        }
         if (hasBps) {
           bodyLatex += `    \\ifbps\n        \\\\[1.5pt]\n        {\\fontsize{9.5pt}{11.5pt}\\selectfont\\textbf{Biophysical Society (BPS) Student Member}}\n    \\fi\n`;
         }
-        bodyLatex += `\\end{center}\n\\vspace{2pt}\n\n`;
+        bodyLatex += `\\end{${envName}}\n\\vspace{2pt}\n\n`;
       } else if (tag === 'h1') {
         const h1Text = deformatHtmlToLatex(node.innerHTML).trim();
         if (h1Text) {
           bodyLatex += `{\\centering {\\LARGE \\textbf{${h1Text}}} \\\\[4pt]}\\par\\medskip\n\n`;
         }
       } else if (tag === 'h2' || cl.contains('cv-section-title')) {
-        const secText = node.textContent.trim();
-        bodyLatex += `\\cvsection{${deformatHtmlToLatex(secText)}}\n`;
+        const secText = deformatHtmlToLatex(node.innerHTML).trim();
+        const secAlign = node.style.textAlign || (node.dataset && node.dataset.align) || '';
+        if (secAlign === 'center') {
+          bodyLatex += `{\\centering \\cvsection{${secText}}\\par}\n`;
+        } else if (secAlign === 'right') {
+          bodyLatex += `{\\raggedleft \\cvsection{${secText}}\\par}\n`;
+        } else {
+          bodyLatex += `\\cvsection{${secText}}\n`;
+        }
       } else if (tag === 'h3' || cl.contains('cv-subsection-title')) {
         const subText = deformatHtmlToLatex(node.innerHTML).trim();
         bodyLatex += `\\subsection*{${subText}}\n`;
@@ -840,10 +888,19 @@ function serializeVisualToLatex() {
         let text = deformatHtmlToLatex(node.innerHTML).trim();
         text = text.replace(/\\(vspace|hspace)\*?(\{[^}]*\}|\d+\w+)?/g, '').trim();
         if (text && text !== 'pt' && text !== '\\vspace1pt') {
-          if (cl.contains('cv-summary') || text.length > 150) {
-            bodyLatex += `{\\fontsize{9.5pt}{12pt}\\selectfont\n${text}\n}\\par\n`;
+          const pAlign = node.style.textAlign || (node.dataset && node.dataset.align) || '';
+          if (pAlign === 'center') {
+            bodyLatex += `{\\centering ${text}\\par}\n`;
+          } else if (pAlign === 'right') {
+            bodyLatex += `{\\raggedleft ${text}\\par}\n`;
+          } else if (pAlign === 'justify') {
+            bodyLatex += `{\\justifying ${text}\\par}\n`;
           } else {
-            bodyLatex += `${text} \\\\\n`;
+            if (cl.contains('cv-summary') || text.length > 150) {
+              bodyLatex += `{\\fontsize{9.5pt}{12pt}\\selectfont\n${text}\n}\\par\n`;
+            } else {
+              bodyLatex += `${text} \\\\\n`;
+            }
           }
           const vspace = node.dataset.vspace || (node.style.marginBottom && node.style.marginBottom !== '0px' ? node.style.marginBottom : '');
           if (vspace) {
@@ -970,25 +1027,44 @@ if (elVBtnSub) {
   });
 }
 
+function applyVisualAlignment(align) {
+  const cmd = align === 'center' ? 'justifyCenter' : (align === 'right' ? 'justifyRight' : 'justifyLeft');
+  document.execCommand(cmd, false, null);
+
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount > 0) {
+    let node = sel.anchorNode;
+    while (node && node !== elVisualBody) {
+      if (node.classList && node.classList.contains('cv-header-block')) {
+        node.style.textAlign = align;
+        node.dataset.align = align;
+        node.querySelectorAll('.cv-name, .cv-address, .cv-contacts, h1, div').forEach(ch => {
+          ch.style.textAlign = align;
+        });
+        break;
+      }
+      if (['P', 'H1', 'H2', 'H3', 'H4', 'DIV'].includes(node.tagName)) {
+        node.style.textAlign = align;
+        node.dataset.align = align;
+        break;
+      }
+      node = node.parentNode;
+    }
+  }
+  elVisualBody.focus();
+  scheduleAutoCompile();
+}
+
 if (elVBtnAlignLeft) {
-  elVBtnAlignLeft.addEventListener('click', () => {
-    document.execCommand('justifyLeft', false, null);
-    elVisualBody.focus();
-  });
+  elVBtnAlignLeft.addEventListener('click', () => applyVisualAlignment('left'));
 }
 
 if (elVBtnAlignCenter) {
-  elVBtnAlignCenter.addEventListener('click', () => {
-    document.execCommand('justifyCenter', false, null);
-    elVisualBody.focus();
-  });
+  elVBtnAlignCenter.addEventListener('click', () => applyVisualAlignment('center'));
 }
 
 if (elVBtnAlignRight) {
-  elVBtnAlignRight.addEventListener('click', () => {
-    document.execCommand('justifyRight', false, null);
-    elVisualBody.focus();
-  });
+  elVBtnAlignRight.addEventListener('click', () => applyVisualAlignment('right'));
 }
 
 if (elVBtnUndo) {
@@ -1066,6 +1142,55 @@ if (elVBtnClear) {
     document.execCommand('removeFormat', false, null);
     elVisualBody.focus();
   });
+}
+
+// Visual Canvas Zoom Controls & Wheel Zoom (Ctrl+Wheel)
+let visualZoom = 1.0;
+const elVisualZoomLevel = document.getElementById('visual-zoom-level');
+const elVBtnZoomIn = document.getElementById('v-btn-zoom-in');
+const elVBtnZoomOut = document.getElementById('v-btn-zoom-out');
+const elVisualCanvasWrapper = document.querySelector('.visual-canvas-wrapper');
+
+function setVisualZoom(val) {
+  visualZoom = Math.min(2.0, Math.max(0.5, Math.round(val * 100) / 100));
+  if (elVisualBody) {
+    elVisualBody.style.transform = `scale(${visualZoom})`;
+    elVisualBody.style.transformOrigin = 'top center';
+    if (elVisualCanvasWrapper) {
+      elVisualCanvasWrapper.style.overflowX = visualZoom > 1.0 ? 'auto' : 'hidden';
+    }
+  }
+  if (elVisualZoomLevel) {
+    elVisualZoomLevel.textContent = `${Math.round(visualZoom * 100)}%`;
+  }
+  localStorage.setItem('localleaf-visual-zoom', visualZoom);
+}
+
+if (elVBtnZoomIn) {
+  elVBtnZoomIn.addEventListener('click', () => setVisualZoom(visualZoom + 0.1));
+}
+
+if (elVBtnZoomOut) {
+  elVBtnZoomOut.addEventListener('click', () => setVisualZoom(visualZoom - 0.1));
+}
+
+if (elVisualZoomLevel) {
+  elVisualZoomLevel.addEventListener('click', () => setVisualZoom(1.0));
+}
+
+if (elVisualCanvasWrapper) {
+  elVisualCanvasWrapper.addEventListener('wheel', (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.08 : -0.08;
+      setVisualZoom(visualZoom + delta);
+    }
+  }, { passive: false });
+}
+
+const savedVisualZoom = parseFloat(localStorage.getItem('localleaf-visual-zoom'));
+if (!isNaN(savedVisualZoom) && savedVisualZoom >= 0.5 && savedVisualZoom <= 2.0) {
+  setVisualZoom(savedVisualZoom);
 }
 
 function getActiveVisualBlock() {
@@ -1434,17 +1559,6 @@ if (elBtnExportDocx) {
   elBtnExportDocx.addEventListener('click', () => exportDocx());
 }
 
-if (elBtnDownloadDocx) {
-  elBtnDownloadDocx.addEventListener('click', () => {
-    const link = document.createElement('a');
-    link.href = '/api/docx?t=' + Date.now();
-    link.download = currentFileInfo ? currentFileInfo.file_name.replace(/\.tex$/, '.docx') : 'document.docx';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  });
-}
-
 // LibreOffice Style Menubar Interactions
 document.querySelectorAll('.menu-item').forEach(item => {
   item.addEventListener('click', (e) => {
@@ -1496,8 +1610,20 @@ bindMenuClick('m-clear-format', () => { document.execCommand('removeFormat', fal
 
 bindMenuClick('m-view-visual', () => setEditorMode('visual'));
 bindMenuClick('m-view-code', () => setEditorMode('code'));
+bindMenuClick('m-view-word-wrap', () => {
+  if (currentMode !== 'code') setEditorMode('code');
+  if (editor) {
+    const currentWrap = editor.getRawOptions ? editor.getRawOptions().wordWrap : editor.getOption(monaco.editor.EditorOption.wordWrap);
+    const nextWrap = (currentWrap === 'on') ? 'off' : 'on';
+    editor.updateOptions({ wordWrap: nextWrap });
+    setStatus('ready', `Word wrap: ${nextWrap}`);
+    setTimeout(() => setStatus('ready', 'Ready'), 1200);
+  }
+});
 bindMenuClick('m-view-toggle-pdf', () => updatePdfVisibility(!isPdfHidden));
 bindMenuClick('m-view-toggle-log', () => elBtnToggleLog.click());
+bindMenuClick('m-view-zoom-visual-in', () => setVisualZoom(visualZoom + 0.1));
+bindMenuClick('m-view-zoom-visual-out', () => setVisualZoom(visualZoom - 0.1));
 bindMenuClick('m-view-zoom-in', () => elPdfZoomIn.click());
 bindMenuClick('m-view-zoom-out', () => elPdfZoomOut.click());
 bindMenuClick('m-view-zoom-reset', () => elPdfZoomReset.click());

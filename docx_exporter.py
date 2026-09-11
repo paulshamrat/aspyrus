@@ -372,11 +372,20 @@ def export_latex_cv_to_docx(
                 i += 1
                 continue
 
-            # Centered Header Block
-            if r"\begin{center}" in line:
+            # Alignment Block (center, flushleft, flushright)
+            m_align_env = re.search(r"\\begin\{(center|flushleft|flushright)\}", line)
+            if m_align_env:
+                env_type = m_align_env.group(1)
+                end_token = f"\\end{{{env_type}}}"
+                align_choice = WD_ALIGN_PARAGRAPH.CENTER
+                if env_type == "flushleft":
+                    align_choice = WD_ALIGN_PARAGRAPH.LEFT
+                elif env_type == "flushright":
+                    align_choice = WD_ALIGN_PARAGRAPH.RIGHT
+
                 i += 1
                 hlines = []
-                while i < len(lines) and r"\end{center}" not in lines[i]:
+                while i < len(lines) and end_token not in lines[i]:
                     hl = lines[i].strip()
                     if hl and not hl.startswith("%"):
                         hlines.append(hl)
@@ -386,7 +395,7 @@ def export_latex_cv_to_docx(
                 chunks = [c.strip() for c in re.split(r"\\\\(?:\s*\[[^\]]*\])?|\n\s*\n", header_raw) if c.strip()]
                 for idx, c in enumerate(chunks):
                     p_head = doc.add_paragraph()
-                    p_head.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    p_head.alignment = align_choice
                     p_head.paragraph_format.space_before = Pt(0)
                     if idx == 0:
                         p_head.paragraph_format.space_after = Pt(2.0)
@@ -544,7 +553,17 @@ def export_latex_cv_to_docx(
             p_reg.paragraph_format.space_before = Pt(0)
             p_reg.paragraph_format.space_after = Pt(0.8)
             p_reg.paragraph_format.line_spacing = line_spacing
-            add_runs(p_reg, line.replace(r"\\", "").strip(), base_size=9.5)
+            clean_l = line.replace(r"\\", "").strip()
+            if clean_l.startswith(r"{\centering") and clean_l.endswith("}"):
+                p_reg.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                clean_l = clean_l[len(r"{\centering"): -1].strip()
+            elif clean_l.startswith(r"{\raggedleft") and clean_l.endswith("}"):
+                p_reg.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                clean_l = clean_l[len(r"{\raggedleft"): -1].strip()
+            elif clean_l.startswith(r"{\raggedright") and clean_l.endswith("}"):
+                p_reg.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                clean_l = clean_l[len(r"{\raggedright"): -1].strip()
+            add_runs(p_reg, clean_l, base_size=9.5)
             i += 1
 
         docx_path.parent.mkdir(parents=True, exist_ok=True)
@@ -745,6 +764,202 @@ def clean_latex_body_for_pandoc(text: str) -> str:
     return text
 
 
+def simplify_docx_ion_charges(docx_path: Path | str) -> None:
+    """Render Mg2+ charge tokens as ordinary superscript Word text.
+
+    Pandoc exports the ``2+`` portion of ``Mg^{2+}`` as a separate Office-Math
+    object, which LibreOffice can draw with corrupt-looking glyphs.
+    """
+    docx_path = Path(docx_path)
+    namespace_math = "http://schemas.openxmlformats.org/officeDocument/2006/math"
+    with zipfile.ZipFile(docx_path, "r") as archive:
+        members = {name: archive.read(name) for name in archive.namelist()}
+    document_name = "word/document.xml"
+    if document_name not in members:
+        return
+    root = ET.fromstring(members[document_name])
+    parents = {child: parent for parent in root.iter() for child in parent}
+    for equation in list(root.findall(f".//{{{namespace_math}}}oMath")):
+        value = "".join(node.text or "" for node in equation.findall(f".//{{{namespace_math}}}t"))
+        if value.replace("\u200b", "") not in {"2+", "3+", "2-", "3-"}:
+            continue
+        colors = equation.findall(f".//{{{NS_W}}}color")
+        color_value = colors[0].attrib.get(f"{{{NS_W}}}val") if colors else None
+        replacement = ET.Element(f"{{{NS_W}}}r")
+        properties = ET.SubElement(replacement, f"{{{NS_W}}}rPr")
+        ET.SubElement(properties, f"{{{NS_W}}}vertAlign", {f"{{{NS_W}}}val": "superscript"})
+        if color_value:
+            ET.SubElement(properties, f"{{{NS_W}}}color", {f"{{{NS_W}}}val": color_value})
+        ET.SubElement(replacement, f"{{{NS_W}}}t").text = value.replace("\u200b", "")
+        parent = parents.get(equation)
+        if parent is not None:
+            siblings = list(parent)
+            parent.insert(siblings.index(equation), replacement)
+            parent.remove(equation)
+    members[document_name] = ET.tostring(root, encoding="utf-8", xml_declaration=True)
+    with zipfile.ZipFile(docx_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for name, content in members.items():
+            archive.writestr(name, content)
+
+
+def simplify_docx_plain_numeric_math(docx_path: Path | str) -> None:
+    """Render simple inline numbers as ordinary Word text, not Office Math."""
+    docx_path = Path(docx_path)
+    namespace_math = "http://schemas.openxmlformats.org/officeDocument/2006/math"
+    with zipfile.ZipFile(docx_path, "r") as archive:
+        members = {name: archive.read(name) for name in archive.namelist()}
+    document_name = "word/document.xml"
+    if document_name not in members:
+        return
+    root = ET.fromstring(members[document_name])
+    parents = {child: parent for parent in root.iter() for child in parent}
+    numeric_value = re.compile(r"^[+\-−]?\d+(?:\.\d+)?$")
+
+    def run_color(run: ET.Element) -> str | None:
+        color = run.find(f"{{{NS_W}}}rPr/{{{NS_W}}}color")
+        return color.attrib.get(f"{{{NS_W}}}val") if color is not None else None
+
+    def nearby_color(parent: ET.Element, equation: ET.Element) -> str | None:
+        siblings = list(parent)
+        index = siblings.index(equation)
+        for offset in range(1, len(siblings)):
+            for candidate_index in (index - offset, index + offset):
+                if not 0 <= candidate_index < len(siblings):
+                    continue
+                sibling = siblings[candidate_index]
+                if sibling.tag != f"{{{NS_W}}}r":
+                    continue
+                color = run_color(sibling)
+                if color is not None:
+                    return color
+        return None
+
+    for equation in list(root.findall(f".//{{{namespace_math}}}oMath")):
+        value = "".join(node.text or "" for node in equation.findall(f".//{{{namespace_math}}}t"))
+        visible_value = value.replace("\u200b", "")
+        if not numeric_value.fullmatch(visible_value):
+            continue
+        colors = equation.findall(f".//{{{NS_W}}}color")
+        color_value = colors[0].attrib.get(f"{{{NS_W}}}val") if colors else None
+        parent = parents.get(equation)
+        if parent is None:
+            continue
+        if color_value is None:
+            color_value = nearby_color(parent, equation)
+        replacement = ET.Element(f"{{{NS_W}}}r")
+        if color_value is not None:
+            properties = ET.SubElement(replacement, f"{{{NS_W}}}rPr")
+            ET.SubElement(properties, f"{{{NS_W}}}color", {f"{{{NS_W}}}val": color_value})
+        ET.SubElement(replacement, f"{{{NS_W}}}t").text = visible_value
+        siblings = list(parent)
+        parent.insert(siblings.index(equation), replacement)
+        parent.remove(equation)
+    members[document_name] = ET.tostring(root, encoding="utf-8", xml_declaration=True)
+    with zipfile.ZipFile(docx_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for name, content in members.items():
+            archive.writestr(name, content)
+
+
+def format_docx_unit_exponents(docx_path: Path | str) -> None:
+    """Render unit exponents as ordinary Word superscripts."""
+    docx_path = Path(docx_path)
+    with zipfile.ZipFile(docx_path, "r") as archive:
+        members = {name: archive.read(name) for name in archive.namelist()}
+    document_name = "word/document.xml"
+    if document_name not in members:
+        return
+    root = ET.fromstring(members[document_name])
+
+    def run_text(run: ET.Element) -> str:
+        return "".join(node.text or "" for node in run.findall(f".//{{{NS_W}}}t"))
+
+    def set_run_text(run: ET.Element, value: str) -> None:
+        nodes = run.findall(f".//{{{NS_W}}}t")
+        if not nodes:
+            ET.SubElement(run, f"{{{NS_W}}}t").text = value
+            return
+        nodes[0].text = value
+        for node in nodes[1:]:
+            node.text = ""
+
+    def run_color(run: ET.Element) -> str | None:
+        color = run.find(f"{{{NS_W}}}rPr/{{{NS_W}}}color")
+        return color.attrib.get(f"{{{NS_W}}}val") if color is not None else None
+
+    def superscript(run: ET.Element, color_value: str | None) -> None:
+        properties = run.find(f"{{{NS_W}}}rPr")
+        if properties is None:
+            properties = ET.Element(f"{{{NS_W}}}rPr")
+            run.insert(0, properties)
+        vertical = properties.find(f"{{{NS_W}}}vertAlign")
+        if vertical is None:
+            vertical = ET.SubElement(properties, f"{{{NS_W}}}vertAlign")
+        vertical.attrib[f"{{{NS_W}}}val"] = "superscript"
+        color = properties.find(f"{{{NS_W}}}color")
+        if color_value is None:
+            if color is not None:
+                properties.remove(color)
+        else:
+            if color is None:
+                color = ET.SubElement(properties, f"{{{NS_W}}}color")
+            color.attrib[f"{{{NS_W}}}val"] = color_value
+
+    for paragraph in root.findall(f".//{{{NS_W}}}p"):
+        runs = [node for node in list(paragraph) if node.tag == f"{{{NS_W}}}r"]
+        for index, run in enumerate(runs[1:], start=1):
+            value = run_text(run)
+            previous = runs[index - 1]
+            previous_text = run_text(previous)
+            if value not in {"-1", "−1", "-2", "−2", "-3", "−3"}:
+                continue
+            if re.search(r"(?:mol|ps|ns|ms|s|cal|J|kcal|kJ|M|mM|μM|nM)\s*$", previous_text):
+                set_run_text(run, "−" + value[-1])
+                superscript(run, run_color(previous))
+            elif previous_text.endswith("Å (^"):
+                set_run_text(previous, previous_text[:-3])
+                set_run_text(run, "−" + value[-1])
+                superscript(run, run_color(previous))
+
+    members[document_name] = ET.tostring(root, encoding="utf-8", xml_declaration=True)
+    with zipfile.ZipFile(docx_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for name, content in members.items():
+            archive.writestr(name, content)
+
+
+def simplify_docx_prose_math_tokens(docx_path: Path | str) -> None:
+    """Keep residue labels and structural symbols out of Office Math."""
+    docx_path = Path(docx_path)
+    namespace_math = "http://schemas.openxmlformats.org/officeDocument/2006/math"
+    with zipfile.ZipFile(docx_path, "r") as archive:
+        members = {name: archive.read(name) for name in archive.namelist()}
+    document_name = "word/document.xml"
+    if document_name not in members:
+        return
+    root = ET.fromstring(members[document_name])
+    parents = {child: parent for parent in root.iter() for child in parent}
+    prose_token = re.compile(r"(?:[A-Z]\d+[A-Z]?|[αβ]\d*|k)")
+    for equation in list(root.findall(f".//{{{namespace_math}}}oMath")):
+        value = "".join(node.text or "" for node in equation.findall(f".//{{{namespace_math}}}t"))
+        if not prose_token.fullmatch(value):
+            continue
+        colors = equation.findall(f".//{{{NS_W}}}color")
+        color_value = colors[0].attrib.get(f"{{{NS_W}}}val") if colors else None
+        replacement = ET.Element(f"{{{NS_W}}}r")
+        if color_value:
+            properties = ET.SubElement(replacement, f"{{{NS_W}}}rPr")
+            ET.SubElement(properties, f"{{{NS_W}}}color", {f"{{{NS_W}}}val": color_value})
+        ET.SubElement(replacement, f"{{{NS_W}}}t").text = value
+        parent = parents.get(equation)
+        if parent is not None:
+            siblings = list(parent)
+            parent.insert(siblings.index(equation), replacement)
+            parent.remove(equation)
+    members[document_name] = ET.tostring(root, encoding="utf-8", xml_declaration=True)
+    with zipfile.ZipFile(docx_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for name, content in members.items():
+            archive.writestr(name, content)
+
+
 def postprocess_docx_typography(
     docx_path: Path,
     line_spacing: float = 1.15,
@@ -810,6 +1025,24 @@ def postprocess_docx_typography(
                     p.paragraph_format.space_after = int(max(0, space_after_pt - 1) * 20)
 
     doc.save(docx_path)
+
+    # Apply manuscript math and unit typography rules
+    try:
+        simplify_docx_ion_charges(docx_path)
+    except Exception:
+        pass
+    try:
+        simplify_docx_plain_numeric_math(docx_path)
+    except Exception:
+        pass
+    try:
+        format_docx_unit_exponents(docx_path)
+    except Exception:
+        pass
+    try:
+        simplify_docx_prose_math_tokens(docx_path)
+    except Exception:
+        pass
 
 
 def export_latex_manuscript_to_docx(
