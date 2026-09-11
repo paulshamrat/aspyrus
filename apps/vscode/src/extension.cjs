@@ -20,7 +20,9 @@ function activate(context) {
         !(await document.save())
       )
         return;
-      const configured = vscode.workspace.getConfiguration('localleaf').get('pythonPath', '');
+      const configured = vscode.workspace
+        .getConfiguration('localleaf', target)
+        .get('pythonPath', '');
       const root = vscode.workspace.getWorkspaceFolder(target)?.uri.fsPath;
       const localPython = root
         ? path.join(
@@ -36,12 +38,14 @@ function activate(context) {
           : process.platform === 'win32'
             ? 'python'
             : 'python3');
+      output.appendLine(`Starting LocalLeaf with Python: ${python}`);
       const backend = spawn(
         python,
         ['-m', 'localleaf', target.fsPath, '--no-browser', '--port', '0'],
         { stdio: ['ignore', 'pipe', 'pipe'] },
       );
       let buffer = '',
+        stderr = '',
         settled = false;
       const timer = setTimeout(() => fail('Backend startup timed out.'), 15000);
       function fail(message) {
@@ -50,15 +54,20 @@ function activate(context) {
         clearTimeout(timer);
         backend.kill();
         output.appendLine(message);
+        const detail = stderr.trim().split('\n').slice(-2).join(' ').slice(0, 500) || message;
+        output.show(true);
         vscode.window.showErrorMessage(
-          'LocalLeaf could not start. Install the backend and configure localleaf.pythonPath. See LocalLeaf output.',
+          `LocalLeaf could not start using ${python}: ${detail}. Check localleaf.pythonPath in Settings.`,
         );
       }
       backend.on('error', (e) => fail(e.message));
       backend.on('exit', (code) => {
         if (!settled) fail(`Backend exited (${code}).`);
       });
-      backend.stderr.on('data', (data) => output.append(data.toString()));
+      backend.stderr.on('data', (data) => {
+        stderr = (stderr + data.toString()).slice(-4000);
+        output.append(data.toString());
+      });
       backend.stdout.on('data', async (data) => {
         output.append(data.toString());
         buffer += data.toString();

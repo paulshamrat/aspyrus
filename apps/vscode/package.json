@@ -2,7 +2,7 @@
   "name": "localleaf",
   "displayName": "LocalLeaf",
   "description": "Local visual LaTeX editing with PDF and DOCX export (alpha)",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "localleaf",
   "license": "MIT",
   "engines": {

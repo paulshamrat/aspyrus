@@ -21,3 +21,9 @@ DOCX layout fidelity, canvas-only PDF preview, and unvalidated remote VS Code su
 - Restore direct CV DOCX export; retain general Pandoc export for other documents.
 - Add DOM startup and CV round-trip regression checks, including the local demo.
 - Discover workspace Python environments in the VS Code extension.
+
+## VS Code startup diagnostics (VSIX 0.1.2)
+
+- Respect resource-scoped Python settings and log the selected interpreter.
+- Show the actual Python startup error and automatically reveal LocalLeaf output.
+- Add a regression test for configured interpreter selection and failure reporting.
