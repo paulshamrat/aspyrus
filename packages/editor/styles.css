@@ -538,82 +538,6 @@ body {
 }
 
 /* Preamble Collapsible Accordion */
-.preamble-card {
-  flex-shrink: 0;
-  margin: 12px 18px 6px 18px;
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.preamble-header {
-  padding: 8px 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-size: 13px;
-  user-select: none;
-  transition: background 0.15s ease;
-}
-
-.preamble-header:hover {
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.preamble-arrow {
-  font-size: 11px;
-  color: var(--text-muted);
-  transition: transform 0.15s ease;
-}
-
-.preamble-arrow.expanded {
-  transform: rotate(90deg);
-}
-
-.preamble-title {
-  font-weight: 600;
-  color: var(--text-main);
-}
-
-.preamble-hint {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.preamble-body {
-  max-height: 250px;
-  overflow: hidden;
-  transition:
-    max-height 0.2s ease,
-    padding 0.2s ease;
-  padding: 8px 12px;
-  border-top: 1px solid var(--border-color);
-}
-
-.preamble-body.collapsed {
-  max-height: 0;
-  padding: 0 12px;
-  border-top-color: transparent;
-}
-
-#preamble-textarea {
-  width: 100%;
-  height: 180px;
-  background: var(--bg-main);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  color: var(--text-main);
-  font-family: monospace;
-  font-size: 12px;
-  line-height: 1.4;
-  padding: 8px;
-  resize: vertical;
-  outline: none;
-}
-
-/* Visual Canvas Body */
 .visual-canvas-wrapper {
   flex: 1;
   min-height: 0;
@@ -681,21 +605,20 @@ body {
 }
 
 .cv-name {
-  font-size: 24px;
-  font-weight: bold;
+  font-size: inherit;
   letter-spacing: 0.3px;
   color: var(--text-main);
   margin-bottom: 4px;
 }
 
 .cv-address {
-  font-size: 13.5px;
+  font-size: inherit;
   color: var(--text-muted);
   margin-bottom: 3px;
 }
 
 .cv-contacts {
-  font-size: 13.5px;
+  font-size: inherit;
   color: var(--text-main);
   margin-bottom: 4px;
   line-height: 1.4;
@@ -728,7 +651,7 @@ body {
 }
 
 .cv-summary {
-  font-size: 13.5px;
+  font-size: inherit;
   line-height: 1.45;
   margin-top: 8px;
   margin-bottom: 14px;
@@ -736,7 +659,7 @@ body {
 }
 
 .cv-section-title {
-  font-size: 14px;
+  font-size: inherit;
   font-weight: bold;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -757,20 +680,20 @@ body {
 
 .cv-entry-title {
   font-weight: bold;
-  font-size: 13.5px;
+  font-size: inherit;
   color: var(--text-main);
 }
 
 .cv-entry-date {
   font-weight: bold;
-  font-size: 13px;
+  font-size: inherit;
   color: var(--text-main);
   white-space: nowrap;
   margin-left: 12px;
 }
 
 .cv-subline {
-  font-size: 13.5px;
+  font-size: inherit;
   color: var(--text-main);
   margin-bottom: 2px;
   line-height: 1.42;
@@ -784,7 +707,7 @@ body {
 
 .cv-list li {
   margin-bottom: 4px;
-  font-size: 13.5px;
+  font-size: inherit;
 }
 
 .cv-table {
@@ -792,7 +715,7 @@ body {
   border-collapse: collapse;
   margin-top: 6px;
   margin-bottom: 12px;
-  font-size: 13.5px;
+  font-size: inherit;
 }
 
 .cv-table td {

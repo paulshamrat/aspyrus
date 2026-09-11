@@ -74,3 +74,19 @@ test('removing an unknown source token cannot silently corrupt the file', () => 
   rich.container.querySelector('[data-latex]').remove();
   assert.throws(() => rich.serialize(), /Protected math or LaTeX/);
 });
+
+test('visual typography follows source sizes and left-aligned header without rewriting source', () => {
+  const source = String.raw`\documentclass[11pt]{article}
+\begin{document}
+\begin{flushleft}
+{\fontsize{16}{18}\selectfont\textbf{Example Person}} \\
+{\fontsize{9.5pt}{11.5pt}\selectfont Contact information}
+\end{flushleft}
+\end{document}`;
+  const rich = render(source);
+  assert.equal(rich.container.style.fontSize, '11pt');
+  assert.equal(rich.container.querySelector('.cv-header-block').style.textAlign, 'left');
+  assert.equal(rich.container.querySelector('.cv-name span').style.fontSize, '16pt');
+  assert.equal(rich.container.querySelector('.cv-address span').style.fontSize, '9.5pt');
+  assert.equal(rich.serialize(), source);
+});

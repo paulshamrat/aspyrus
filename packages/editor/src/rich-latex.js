@@ -53,7 +53,9 @@ export function inlineHtml(source) {
         html += token(source.slice(i));
         break;
       }
-      const size = part.text.match(/^\\fontsize\{([\d.]+)pt\}\{([\d.]+)pt\}\\selectfont\s*/);
+      const size = part.text.match(
+        /^\\fontsize\{([\d.]+)(?:pt)?\}\{([\d.]+)(?:pt)?\}\\selectfont\s*/,
+      );
       if (size)
         html += `<span style="font-size:${size[1]}pt;line-height:${size[2]}pt">${inlineHtml(part.text.slice(size[0].length))}</span>`;
       else html += `<span data-group="true">${inlineHtml(part.text)}</span>`;
@@ -386,6 +388,9 @@ export class RichDocument {
     this.suffix = end < 0 ? '' : source.slice(end);
     this.originalPreamble = start < 0 ? '' : source.slice(0, start);
     this.preamble.value = this.originalPreamble;
+    const classOptions = this.originalPreamble.match(/\\documentclass\[([^\]]*)\]/)?.[1];
+    const baseSize = classOptions?.match(/(?:^|,)\s*(10|11|12)pt\s*(?:,|$)/)?.[1] || '10';
+    this.container.style.fontSize = `${baseSize}pt`;
     const body = source.slice(
       start < 0 ? 0 : start + '\\begin{document}'.length,
       end < 0 ? source.length : end,

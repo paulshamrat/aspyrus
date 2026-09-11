@@ -47,10 +47,8 @@ const elVisualContainer = document.getElementById('visual-container');
 const elVisualToolbar = document.getElementById('visual-toolbar');
 
 // Visual Editor Elements
-const elPreambleToggle = document.getElementById('preamble-toggle');
-const elPreambleArrow = document.getElementById('preamble-arrow');
-const elPreambleBody = document.getElementById('preamble-body');
-const elPreambleTextarea = document.getElementById('preamble-textarea');
+// Preserve source setup internally; it remains editable in Code mode.
+const elPreambleTextarea = { value: '' };
 const elVisualBody = document.getElementById('visual-body');
 
 // LibreOffice / Word Style Visual Toolbar Elements
@@ -407,18 +405,6 @@ function setEditorMode(mode) {
 
 elBtnModeCode.addEventListener('click', () => setEditorMode('code'));
 elBtnModeVisual.addEventListener('click', () => setEditorMode('visual'));
-
-// Preamble Accordion Toggle
-elPreambleToggle.addEventListener('click', () => {
-  const isCollapsed = elPreambleBody.classList.contains('collapsed');
-  if (isCollapsed) {
-    elPreambleBody.classList.remove('collapsed');
-    elPreambleArrow.classList.add('expanded');
-  } else {
-    elPreambleBody.classList.add('collapsed');
-    elPreambleArrow.classList.remove('expanded');
-  }
-});
 
 // PDF Zoom State
 let pdfZoomMode = 'fit'; // 'fit' or 'manual'
@@ -1456,7 +1442,6 @@ new MutationObserver(() => {
   attributes: true,
   attributeFilter: ['style', 'data-align', 'data-vspace'],
 });
-elPreambleTextarea.addEventListener('input', scheduleAutoCompile);
 
 elFileSearchInput.addEventListener('input', () => {
   for (const item of elFileList.children)
