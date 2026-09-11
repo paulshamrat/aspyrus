@@ -1,0 +1,135 @@
+% ==============================================================================
+% ACADEMIC CV / RESUME TEMPLATE (Visual-Editor Friendly)
+% Designed for LocalLeaf & Overleaf Visual Editor
+% ==============================================================================
+
+\documentclass[10pt,letterpaper]{article}
+
+\usepackage[margin=0.5in,top=0.45in,bottom=0.45in]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}         % Times New Roman font
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xcolor}
+
+\pagestyle{empty}
+
+% Section Header Command (clean, bold, no boxes)
+\newcommand{\cvsection}[1]{%
+  \vspace{7pt}%
+  \noindent{\fontsize{11pt}{13pt}\selectfont\textbf{\MakeUppercase{#1}}}\par
+  \vspace{2pt}%
+  \hrule height 0.4pt%
+  \vspace{4pt}%
+}
+
+% Compatible with Overleaf \makerubric and \entry syntax
+\newcommand{\makerubric}[1]{\cvsection{#1}}
+\newcommand{\entry}[4]{%
+  \noindent\textbf{#1} \hfill \textbf{#4} \\
+  \if\relax\detokenize{#2}\relax\else\textit{#2} \fi
+  \if\relax\detokenize{#3}\relax\else \hfill #3\fi\par\vspace{2pt}%
+}
+
+% List formatting for visual bullet editing
+\setlist[itemize]{
+    noitemsep,
+    topsep=1pt,
+    parsep=0pt,
+    partopsep=0pt,
+    itemsep=1.5pt,
+    leftmargin=1.2em
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+
+\begin{document}
+
+% ==============================================================================
+% HEADER
+% ==============================================================================
+\begin{center}
+    {\fontsize{16pt}{18pt}\selectfont\textbf{Bristi Paul}} \\[3pt]
+    {\fontsize{9.5pt}{11.5pt}\selectfont Department of Biochemistry and Biotechnology} \\[1.5pt]
+    {\fontsize{9.5pt}{11.5pt}\selectfont University of Science and Technology Chittagong (USTC), Chattogram, Bangladesh} \\[1.5pt]
+    {\fontsize{9.5pt}{11.5pt}\selectfont
+        Email: \href{mailto:bristipaul.bmb@gmail.com}{bristipaul.bmb@gmail.com} $\;\vert\;$
+        Phone: +880 1XXXXXXXXX $\;\vert\;$
+        LinkedIn: \href{https://linkedin.com}{linkedin.com/in/bristipaul}
+    }
+\end{center}
+\vspace{2pt}
+
+% ==============================================================================
+% EDUCATION
+% ==============================================================================
+\cvsection{Education}
+
+\entry{University of Science and Technology Chittagong}{Bachelor of Science in Biochemistry and Biotechnology}{1st Year, 2nd Semester}{2024 -- Present}
+\begin{itemize}
+    \item Focus: Molecular Biology, Biochemistry, and Applied Biotechnology.
+    \item Current Academic Standing: Enrolled in foundational biosciences coursework.
+\end{itemize}
+
+\entry{Higher Secondary Certificate (HSC)}{Science Division}{GPA: 5.00 / 5.00}{2021 -- 2023}
+\begin{itemize}
+    \item Major Subjects: Biology, Chemistry, Physics, and Higher Mathematics.
+\end{itemize}
+
+% ==============================================================================
+% RELEVANT COURSEWORK
+% ==============================================================================
+\cvsection{Relevant Coursework}
+\begin{itemize}
+    \item \textbf{Biochemistry I \& II}: Biomolecules, enzyme kinetics, and metabolic pathways.
+    \item \textbf{Biotechnology Fundamentals}: Recombinant DNA principles, gene cloning, and applications.
+    \item \textbf{Cell Biology}: Cellular architecture, transport systems, and signal transduction.
+    \item \textbf{General Chemistry}: Stoichiometry, atomic structure, and chemical equilibrium.
+    \item \textbf{Organic Chemistry}: Reaction mechanisms, functional group chemistry, and stereochemistry.
+\end{itemize}
+
+% ==============================================================================
+% RESEARCH SKILLS
+% ==============================================================================
+\cvsection{Skills}
+\begin{itemize}
+    \item \textbf{Laboratory Techniques}: Gel electrophoresis (agarose/PAGE), micropipetting, buffer and reagent preparation, spectrophotometry, solution autoclaving, light microscopy.
+    \item \textbf{Data Analysis \& Computing}: Microsoft Office (Excel, Word, PowerPoint), GraphPad Prism, basic Python scripting, statistical analysis.
+    \item \textbf{Research \& Writing}: Scientific literature review, reference management, experimental documentation, and scientific report drafting.
+    \item \textbf{Professional Strengths}: Strong laboratory safety compliance, collaborative teamwork, detail-oriented observation, and verbal communication.
+\end{itemize}
+
+% ==============================================================================
+% RESEARCH & WORK EXPERIENCE
+% ==============================================================================
+\cvsection{Experience}
+
+\entry{Undergraduate Student Researcher}{Department of Biochemistry and Biotechnology, USTC}{Chattogram, Bangladesh}{Jan 2025 -- Present}
+\begin{itemize}
+    \item Assisted in introductory laboratory experiments and biochemical reagent preparation.
+    \item Maintained strict laboratory safety standards and recorded observations in detailed lab notebooks.
+    \item Collaborated with senior researchers in reviewing literature for biotechnology applications.
+\end{itemize}
+
+% ==============================================================================
+% EXTRACURRICULAR ACTIVITIES & LEADERSHIP
+% ==============================================================================
+\cvsection{Extracurricular Activities}
+\begin{itemize}
+    \item \textbf{Member}, USTC Biochemistry \& Biotechnology Club (2024 -- Present).
+    \item \textbf{Volunteer}, Science \& Health Awareness Workshop for Youth (2024).
+    \item Active participant in department academic seminars and science fairs.
+\end{itemize}
+
+% ==============================================================================
+% REFERENCES
+% ==============================================================================
+\cvsection{References}
+\begin{itemize}
+    \item Available upon request.
+\end{itemize}
+
+\end{document}

@@ -2,5 +2,8 @@ node_modules/
 __pycache__/
 *.pyc
 .localleaf_build/
+*.aux
 *.log
+*.out
+*.pdf
 .DS_Store
