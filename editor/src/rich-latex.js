@@ -428,23 +428,31 @@ export class RichDocument {
       const id = node.dataset?.sourceId;
       if (id !== undefined) {
         const block = this.blocks[Number(id)];
-        if (!block || seen.has(block.id))
-          throw new Error('Source block structure changed. Switch to Code to recover.');
-        seen.add(block.id);
-        const remaining = [...node.querySelectorAll('[data-latex]')].map(
-          (token) => token.dataset.latex,
-        );
-        for (const token of block.tokens) {
-          const index = remaining.indexOf(token);
-          if (index < 0)
-            throw new Error('Protected math or LaTeX was removed. Undo this edit before saving.');
-          remaining.splice(index, 1);
+        if (block && !seen.has(block.id)) {
+          seen.add(block.id);
+          const remaining = [...node.querySelectorAll('[data-latex]')].map(
+            (token) => token.dataset.latex,
+          );
+          for (const token of block.tokens) {
+            const index = remaining.indexOf(token);
+            if (index < 0)
+              throw new Error('Protected math or LaTeX was removed. Undo this edit before saving.');
+            remaining.splice(index, 1);
+          }
+          if (node.innerHTML === block.snapshot || block.protected || block.hidden)
+            body += block.raw;
+          else
+            body += [...node.childNodes]
+              .map((child) => serializeBlock(child, this.preamble.value))
+              .join('');
+        } else {
+          // Block was split by Enter or dynamic edit
+          body +=
+            '\n' +
+            [...node.childNodes]
+              .map((child) => serializeBlock(child, this.preamble.value))
+              .join('');
         }
-        if (node.innerHTML === block.snapshot || block.protected || block.hidden) body += block.raw;
-        else
-          body += [...node.childNodes]
-            .map((child) => serializeBlock(child, this.preamble.value))
-            .join('');
       } else body += serializeBlock(node, this.preamble.value);
     }
     for (const block of this.blocks)

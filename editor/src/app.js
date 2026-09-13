@@ -3,7 +3,10 @@ import { escapeHtml } from './latex.js';
 
 let currentFileInfo = null;
 let isCompiling = false;
-let selectedFile = null;
+let selectedFile =
+  typeof window !== 'undefined' && window.location
+    ? new URLSearchParams(window.location.search).get('file')
+    : null;
 let savedContent = '';
 let pendingWrite = Promise.resolve();
 let visualAutoSaveTimer = null;
@@ -46,27 +49,29 @@ async function writeDocument(path, content, extra = {}) {
   const revision = currentFileInfo?.revision;
   const body = { file, revision, content, ...extra };
 
-  pendingWrite = pendingWrite.then(async () => {
-    const response = await fetch(`/api/${path}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-LocalLeaf': '1',
-      },
-      body: JSON.stringify(body),
+  pendingWrite = pendingWrite
+    .catch(() => {})
+    .then(async () => {
+      const response = await fetch(`/api/${path}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-LocalLeaf': '1',
+        },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Write operation failed');
+      }
+
+      if (currentFileInfo && data.revision) {
+        currentFileInfo.revision = data.revision;
+      }
+      savedContent = content;
+      return data;
     });
-
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || 'Write operation failed');
-    }
-
-    if (currentFileInfo && data.revision) {
-      currentFileInfo.revision = data.revision;
-    }
-    savedContent = content;
-    return data;
-  });
 
   return pendingWrite;
 }
@@ -147,17 +152,21 @@ function dismissLogDrawer() {
 async function triggerCompile() {
   if (isCompiling) return;
 
+  let content;
+  try {
+    content = getCurrentContent();
+  } catch (err) {
+    setStatus('error', err.message);
+    return;
+  }
+
   isCompiling = true;
   setStatus('compiling', 'Compiling PDF & DOCX...');
   if (elBtnRecompile) elBtnRecompile.disabled = true;
 
-  const content = getCurrentContent();
-  const engine = elEngineSelect.value || 'pdflatex';
-
   try {
+    const engine = elEngineSelect?.value || 'pdflatex';
     const data = await writeDocument('compile', content, { engine });
-    isCompiling = false;
-    if (elBtnRecompile) elBtnRecompile.disabled = false;
 
     if (elRawLogText) elRawLogText.textContent = data.log || 'No log output.';
 
@@ -182,16 +191,17 @@ async function triggerCompile() {
       }
     }
   } catch (err) {
-    isCompiling = false;
-    if (elBtnRecompile) elBtnRecompile.disabled = false;
     setStatus('error', err.message);
     console.error('Compile error:', err);
+  } finally {
+    isCompiling = false;
+    if (elBtnRecompile) elBtnRecompile.disabled = false;
   }
 }
 
 async function saveContentOnly() {
-  const content = getCurrentContent();
   try {
+    const content = getCurrentContent();
     await writeDocument('save', content);
     setStatus('ready', 'Saved');
     setTimeout(() => setStatus('ready', 'Ready'), 1500);
@@ -256,7 +266,13 @@ async function checkForExternalUpdates() {
     const data = await res.json();
     if (currentFileInfo && data.revision !== currentFileInfo.revision) {
       // Check if user has unsaved local visual edits
-      const currentLocal = getCurrentContent();
+      let currentLocal = savedContent;
+      try {
+        currentLocal = getCurrentContent();
+      } catch {
+        // If local DOM is in an intermediate state, don't overwrite user edits
+        return;
+      }
       if (currentLocal === savedContent) {
         // Safe to seamlessly reload
         currentFileInfo = data;
@@ -438,8 +454,12 @@ async function init() {
   // Visual Content Change Observer
   if (elVisualBody) {
     new MutationObserver(() => {
-      if (currentFileInfo && getCurrentContent() !== savedContent) {
-        scheduleAutoCompile();
+      try {
+        if (currentFileInfo && getCurrentContent() !== savedContent) {
+          scheduleAutoCompile();
+        }
+      } catch (err) {
+        setStatus('error', err.message);
       }
     }).observe(elVisualBody, {
       subtree: true,

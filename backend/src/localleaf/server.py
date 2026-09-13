@@ -76,6 +76,7 @@ class Handler(BaseHTTPRequestHandler):
             "Content-Type", mimetypes.guess_type(file.name)[0] or "application/octet-stream"
         )
         self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-cache, must-revalidate")
         self.end_headers()
         self.wfile.write(data)
 
