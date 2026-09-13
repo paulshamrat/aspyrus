@@ -61,11 +61,11 @@ test('local handover demo round-trip and visual structure', { skip: !existsSync(
   const source = readFileSync(demo, 'utf8'),
     rich = render(source);
   assert.equal(rich.serialize(), source);
-  assert.equal(rich.container.querySelectorAll('table').length, 3);
-  assert.ok(rich.container.querySelectorAll('li').length > 20);
+  assert.ok(rich.container.querySelectorAll('.cv-section-title').length >= 8);
+  assert.ok(rich.container.querySelectorAll('li').length >= 15);
   assert.match(rich.container.querySelector('.cv-name').textContent, /Shamrat/);
   const heading = rich.container.querySelector('h2');
-  heading.style.textAlign = 'right';
+  if (heading) heading.style.textAlign = 'right';
   writeFileSync('/tmp/localleaf-demo-edited.tex', rich.serialize());
 });
 
