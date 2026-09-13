@@ -3,6 +3,7 @@
 import hashlib
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 import threading
@@ -62,6 +63,11 @@ class LocalLeafState:
                     line_spacing=line_spacing,
                     space_after_pt=space_after_pt,
                 )
+                if ok and self.output_docx.exists() and self.output_dir != self.target_file.parent:
+                    try:
+                        shutil.copy2(self.output_docx, self.target_file.parent / f"{self.target_file.stem}.docx")
+                    except Exception:
+                        pass
                 size = self.output_docx.stat().st_size if self.output_docx.exists() else 0
                 return {
                     "success": ok,
@@ -169,6 +175,11 @@ class LocalLeafState:
 
             errors, warnings = parse_latex_log(log_content)
             success = (exit_code == 0) and self.output_pdf.exists()
+            if success and self.output_dir != self.target_file.parent:
+                try:
+                    shutil.copy2(self.output_pdf, self.target_file.parent / f"{self.target_file.stem}.pdf")
+                except Exception:
+                    pass
 
             if not success and len(errors) == 0:
                 errors.append(
