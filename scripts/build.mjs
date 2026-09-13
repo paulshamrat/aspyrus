@@ -39,13 +39,7 @@ await build({
   )
     throw new Error('Patched sanitizer was not bundled');
 });
-await mkdir(path.join(assets, 'vendor/pdfjs'), { recursive: true });
-for (const item of ['pdf.min.mjs', 'pdf.worker.min.mjs'])
-  await cp(
-    path.join(root, 'node_modules/pdfjs-dist/build', item),
-    path.join(assets, 'vendor/pdfjs', item),
-  );
-for (const dependency of ['monaco-editor', 'pdfjs-dist', 'dompurify']) {
+for (const dependency of ['monaco-editor', 'dompurify']) {
   await cp(
     path.join(root, 'node_modules', dependency, 'LICENSE'),
     path.join(assets, 'vendor', dependency + '-LICENSE'),

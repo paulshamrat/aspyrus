@@ -170,6 +170,10 @@ class Handler(BaseHTTPRequestHandler):
                 revision = doc.write_content(content, revision)
                 if path == "/api/compile":
                     result = doc.compile(engine)
+                    if result.get("success"):
+                        docx_res = doc.export_docx()
+                        result["docx_success"] = docx_res.get("success", False)
+                        result["output_docx"] = docx_res.get("output_docx")
                 elif path == "/api/export_docx":
                     result = doc.export_docx()
                 else:

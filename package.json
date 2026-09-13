@@ -15,8 +15,7 @@
     "package:extension": "cd apps/vscode && vsce package --no-dependencies --allow-missing-repository"
   },
   "dependencies": {
-    "monaco-editor": "0.56.0",
-    "pdfjs-dist": "6.3.289"
+    "monaco-editor": "0.56.0"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
