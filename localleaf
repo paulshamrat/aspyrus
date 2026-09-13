@@ -1,4 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-TARGET="$(readlink -f "${BASH_SOURCE[0]}")"
-exec "${LOCALLEAF_PYTHON:-python3}" "$(dirname "$TARGET")/server.py" "$@"
