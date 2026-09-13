@@ -5,7 +5,7 @@ import { JSDOM } from 'jsdom';
 import { RichDocument } from '../src/rich-latex.js';
 
 test('handover interface starts and code/visual switches preserve a CV', async () => {
-  const html = readFileSync('packages/editor/index.html', 'utf8');
+  const html = readFileSync('editor/index.html', 'utf8');
   const dom = new JSDOM(html, {
     url: 'http://127.0.0.1:4848',
     runScripts: 'outside-only',
@@ -47,7 +47,7 @@ test('handover interface starts and code/visual switches preserve a CV', async (
       pdf_exists: false,
     }),
   });
-  const script = readFileSync('packages/editor/src/app.js', 'utf8').replace(/^import .*;\n/gm, '');
+  const script = readFileSync('editor/src/app.js', 'utf8').replace(/^import .*;\n/gm, '');
   window.eval(script);
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(window.document.getElementById('active-filename').textContent, 'example.tex');

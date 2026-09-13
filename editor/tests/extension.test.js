@@ -61,7 +61,7 @@ test('extension honors configured Python and reports the actual startup failure'
         },
       })[name],
   };
-  runInNewContext(readFileSync('apps/vscode/src/extension.cjs', 'utf8'), sandbox);
+  runInNewContext(readFileSync('vscode/src/extension.cjs', 'utf8'), sandbox);
   sandbox.module.exports.activate({ subscriptions: [] });
   await command(target);
   assert.equal(launched[0], '/installed/python');

@@ -5,11 +5,10 @@ thin VS Code extension. This alpha intentionally uses only the modules it needs.
 
 - `backend/src/localleaf`: loopback API, per-document locking and revisions,
   project settings, compilation, and DOCX export.
-- `packages/editor`: Monaco source editor, bounded source-backed visual editing,
-  PDF.js preview, and document actions. No CDN requests.
-- `apps/vscode`: launches an installed backend on a free port and embeds its UI.
-- `scripts/build.mjs`: assembles the editor and vendor assets into Python package data.
-- `backend/tests`, `packages/editor/tests`, `tests/fixtures`: regression coverage.
+- `editor`: Monaco source editor, clean full-width visual editing, and document actions. No CDN requests.
+- `vscode`: launches an installed backend on a free port and embeds its UI.
+- `scripts/build.mjs`: assembles the editor assets into Python package data.
+- `backend/tests`, `editor/tests`, `tests/fixtures`: regression coverage.
 
 The visual editor records original source ranges. It patches only edited ranges;
 no-op saves and mode switches retain the original source. Equations, environments,

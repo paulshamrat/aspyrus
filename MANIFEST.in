@@ -1,8 +1,8 @@
 include package.json package-lock.json eslint.config.js .prettierrc.json .prettierignore
 include CONTRIBUTING.md CHANGELOG.md SECURITY.md AGENTS.md
-recursive-include packages/editor *.js *.json *.html *.css
+recursive-include editor *.js *.json *.html *.css
 recursive-include scripts *.mjs
-recursive-include apps/vscode *.cjs *.json *.md LICENSE .vscodeignore
+recursive-include vscode *.cjs *.json *.md LICENSE .vscodeignore
 recursive-include backend/tests *.py
 recursive-include tests/fixtures *.tex
 recursive-include examples *.tex *.toml

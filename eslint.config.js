@@ -14,7 +14,7 @@ export default [
   js.configs.recommended,
   { files: ['**/*.js', '**/*.mjs', '**/*.cjs'], languageOptions: { globals: { ...globals.node } } },
   {
-    files: ['packages/editor/src/*.js'],
+    files: ['editor/src/*.js'],
     languageOptions: { globals: { ...globals.browser } },
   },
   {

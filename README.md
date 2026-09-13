@@ -38,7 +38,7 @@ Build the backend assets and install the Python package as above, then:
 npm run package:extension
 ```
 
-Install the resulting `apps/vscode/localleaf-0.1.1.vsix` using VS Code's
+Install the resulting `vscode/localleaf-0.1.2.vsix` using VS Code's
 **Extensions: Install from VSIX** command. Set `localleaf.pythonPath` to the
 absolute path of your environment's Python. Open a `.tex` file and run
 **LocalLeaf: Open LaTeX Editor**. Each panel owns a local backend process.

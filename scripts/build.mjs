@@ -7,7 +7,7 @@ const assets = path.join(root, 'backend/src/localleaf/assets');
 await rm(assets, { recursive: true, force: true });
 await mkdir(assets, { recursive: true });
 for (const item of ['index.html', 'styles.css'])
-  await cp(path.join(root, 'packages/editor', item), path.join(assets, item));
+  await cp(path.join(root, 'editor', item), path.join(assets, item));
 // Monaco ships an embedded sanitizer. Resolve that module to our audited version.
 const sanitizer = {
   name: 'patched-monaco-sanitizer',
@@ -19,7 +19,7 @@ const sanitizer = {
 };
 await build({
   entryPoints: {
-    app: path.join(root, 'packages/editor/src/app.js'),
+    app: path.join(root, 'editor/src/app.js'),
     'editor.worker': path.join(root, 'node_modules/monaco-editor/esm/vs/editor/editor.worker.js'),
   },
   outdir: path.join(assets, 'src'),
