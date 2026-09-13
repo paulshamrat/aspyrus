@@ -1,17 +1,12 @@
-import * as monaco from 'monaco-editor/editor/editor.api.js';
-import 'monaco-editor/editor/contrib/find/browser/findController.js';
 import { RichDocument } from './rich-latex.js';
 import { escapeHtml } from './latex.js';
 
-let editor = null;
 let currentFileInfo = null;
 let isCompiling = false;
-let currentMode = 'visual'; // 'code' or 'visual'
 let selectedFile = null;
 let savedContent = '';
 let pendingWrite = Promise.resolve();
 let visualAutoSaveTimer = null;
-let lastActiveVisualSnippet = '';
 let userDismissedLogs = false;
 let richDocument = null;
 
@@ -36,12 +31,6 @@ const elFileModal = document.getElementById('file-modal');
 const elBtnCloseModal = document.getElementById('btn-close-modal');
 const elFileList = document.getElementById('file-list');
 const elFileSearchInput = document.getElementById('file-search-input');
-
-// Mode Switch Elements
-const elBtnModeCode = document.getElementById('btn-mode-code');
-const elBtnModeVisual = document.getElementById('btn-mode-visual');
-const elEditorContainer = document.getElementById('editor-container');
-const elVisualContainer = document.getElementById('visual-container');
 
 // Visual Canvas Elements
 const elPreambleTextarea = { value: '' };
@@ -82,147 +71,17 @@ async function writeDocument(path, content, extra = {}) {
   return pendingWrite;
 }
 
-function updateVisualSelectionSnippet() {
-  const sel = window.getSelection();
-  if (!sel || sel.rangeCount === 0) return;
-
-  const node = sel.anchorNode;
-  if (!node || !elVisualBody || !elVisualBody.contains(node)) return;
-
-  let text = '';
-  if (node.nodeType === Node.TEXT_NODE) {
-    text = node.textContent.trim();
-  } else if (node.nodeType === Node.ELEMENT_NODE) {
-    text = node.textContent.trim();
-  }
-
-  if (text.length > 3) {
-    lastActiveVisualSnippet = text;
-  }
-}
-
-if (elVisualBody) {
-  elVisualBody.addEventListener('mouseup', updateVisualSelectionSnippet);
-  elVisualBody.addEventListener('keyup', updateVisualSelectionSnippet);
-}
-
-function jumpCodeEditorToSnippet(snippet) {
-  if (!editor || !snippet) return;
-  const model = editor.getModel();
-  if (!model) return;
-
-  const cleanSnippet = snippet.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').slice(0, 40);
-  const matches = model.findMatches(cleanSnippet, true, false, false, null, true);
-
-  if (matches && matches.length > 0) {
-    const targetLine = matches[0].range.startLineNumber;
-    editor.revealLineInCenter(targetLine);
-    editor.setPosition({ lineNumber: targetLine, column: matches[0].range.startColumn });
-    editor.focus();
-  }
-}
-
-function jumpVisualEditorToText(text) {
-  if (!text || !elVisualBody) return;
-  const words = text
-    .replace(/[^\w\s-]/g, ' ')
-    .trim()
-    .split(/\s+/)
-    .filter((w) => w.length > 2);
-  if (words.length === 0) return;
-
-  const targetSearch = words.slice(0, 3).join(' ').toLowerCase();
-  const walker = document.createTreeWalker(elVisualBody, NodeFilter.SHOW_ELEMENT);
-  let matchNode = null;
-  while (walker.nextNode()) {
-    const el = walker.currentNode;
-    if (['P', 'H1', 'H2', 'H3', 'H4', 'LI', 'TR', 'DIV'].includes(el.tagName)) {
-      if (el.textContent.toLowerCase().includes(targetSearch)) {
-        matchNode = el;
-        break;
-      }
-    }
-  }
-
-  if (matchNode) {
-    matchNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    matchNode.classList.add('visual-highlight-jump');
-    setTimeout(() => matchNode.classList.remove('visual-highlight-jump'), 1500);
-  }
-}
-
-function setEditorMode(mode) {
-  if (currentMode === mode) return;
-
-  if (mode === 'code') {
-    updateVisualSelectionSnippet();
-    const latexCode = serializeVisualToLatex();
-    if (editor) {
-      editor.setValue(latexCode);
-    }
-    elEditorContainer.classList.remove('hidden');
-    elVisualContainer.classList.add('hidden');
-    elBtnModeCode.classList.add('active');
-    elBtnModeVisual.classList.remove('active');
-    currentMode = 'code';
-    if (editor) {
-      requestAnimationFrame(() => {
-        editor.layout();
-        editor.focus();
-        if (lastActiveVisualSnippet) {
-          jumpCodeEditorToSnippet(lastActiveVisualSnippet);
-        }
-      });
-      setTimeout(() => {
-        if (editor) editor.layout();
-      }, 60);
-    }
-  } else {
-    let currentLineText = '';
-    if (editor) {
-      const pos = editor.getPosition();
-      if (pos) {
-        const lineContent = editor.getModel().getLineContent(pos.lineNumber);
-        currentLineText = lineContent
-          .replace(
-            /\\(?:textbf|textit|href|cvsection|begin|end|item|rule|fontsize|selectfont)\b[^{}]*(\{[^}]*\})?/g,
-            ' ',
-          )
-          .trim();
-      }
-    }
-    const latexCode = editor ? editor.getValue() : '';
-    renderLatexToVisual(latexCode);
-    elEditorContainer.classList.add('hidden');
-    elVisualContainer.classList.remove('hidden');
-    elBtnModeVisual.classList.add('active');
-    elBtnModeCode.classList.remove('active');
-    currentMode = 'visual';
-
-    if (currentLineText) {
-      setTimeout(() => jumpVisualEditorToText(currentLineText), 40);
-    }
-  }
-}
-
-if (elBtnModeCode) elBtnModeCode.addEventListener('click', () => setEditorMode('code'));
-if (elBtnModeVisual) elBtnModeVisual.addEventListener('click', () => setEditorMode('visual'));
-
 function renderLatexToVisual(source) {
   richDocument = new RichDocument(elVisualBody, elPreambleTextarea);
   richDocument.render(source);
 }
 
 function serializeVisualToLatex() {
-  return richDocument ? richDocument.serialize() : editor?.getValue() || '';
+  return richDocument ? richDocument.serialize() : savedContent;
 }
 
 function getCurrentContent() {
-  if (currentMode === 'visual') {
-    return serializeVisualToLatex();
-  } else {
-    return editor ? editor.getValue() : '';
-  }
+  return serializeVisualToLatex();
 }
 
 function setStatus(type, text) {
@@ -251,14 +110,6 @@ function renderIssues(errors, warnings) {
         <div class="error-line">Line ${err.line}</div>
         ${err.snippet ? `<div class="error-snippet">${escapeHtml(err.snippet)}</div>` : ''}
       `;
-      item.addEventListener('click', () => {
-        if (currentMode !== 'code') setEditorMode('code');
-        if (editor) {
-          editor.revealLineInCenter(err.line);
-          editor.setPosition({ lineNumber: err.line, column: 1 });
-          editor.focus();
-        }
-      });
       elErrorsList.appendChild(item);
     });
   }
@@ -292,7 +143,7 @@ function dismissLogDrawer() {
   userDismissedLogs = true;
 }
 
-// Unified Compile: Compiles PDF and companion DOCX
+// Unified Compile: Generates PDF and companion DOCX
 async function triggerCompile() {
   if (isCompiling) return;
 
@@ -361,28 +212,15 @@ function scheduleAutoCompile() {
   }, 1200);
 }
 
-function toggleWordWrap() {
-  if (!editor) return;
-  const currentWrap = editor.getRawOptions
-    ? editor.getRawOptions().wordWrap
-    : editor.getOption(monaco.editor.EditorOption.wordWrap);
-  const nextWrap = currentWrap === 'on' ? 'off' : 'on';
-  editor.updateOptions({ wordWrap: nextWrap });
-  setStatus('ready', `Word wrap: ${nextWrap}`);
-  setTimeout(() => setStatus('ready', 'Ready'), 1200);
-}
-
 function applyTheme(theme) {
   if (theme === 'dark') {
     document.body.classList.remove('theme-light');
     document.body.classList.add('theme-dark');
     if (elThemeIcon) elThemeIcon.textContent = '🌙';
-    if (editor) monaco.editor.setTheme('vs-dark');
   } else {
     document.body.classList.remove('theme-dark');
     document.body.classList.add('theme-light');
     if (elThemeIcon) elThemeIcon.textContent = '☀️';
-    if (editor) monaco.editor.setTheme('vs');
   }
   localStorage.setItem('localleaf-theme', theme);
 }
@@ -401,15 +239,35 @@ async function loadFile() {
 
     if (data.engine && elEngineSelect) elEngineSelect.value = data.engine;
 
-    if (editor) {
-      editor.setValue(data.content);
-    }
     renderLatexToVisual(data.content);
-
     setStatus('ready', 'Ready');
   } catch (err) {
     console.error('Load error:', err);
     setStatus('error', err.message);
+  }
+}
+
+// Reload from disk if modified externally (e.g. by VS Code or AI agent)
+async function checkForExternalUpdates() {
+  if (isCompiling) return;
+  try {
+    const res = await fetch(documentUrl('/api/document'));
+    if (!res.ok) return;
+    const data = await res.json();
+    if (currentFileInfo && data.revision !== currentFileInfo.revision) {
+      // Check if user has unsaved local visual edits
+      const currentLocal = getCurrentContent();
+      if (currentLocal === savedContent) {
+        // Safe to seamlessly reload
+        currentFileInfo = data;
+        savedContent = data.content;
+        renderLatexToVisual(data.content);
+        setStatus('ready', 'Updated from disk');
+        setTimeout(() => setStatus('ready', 'Ready'), 1500);
+      }
+    }
+  } catch {
+    // Ignore transient poll errors
   }
 }
 
@@ -460,47 +318,8 @@ async function init() {
   const savedTheme = localStorage.getItem('localleaf-theme') || 'dark';
   applyTheme(savedTheme);
 
-  // Initialize Monaco Editor
-  editor = monaco.editor.create(elEditorContainer, {
-    value: '% Loading file...',
-    language: 'latex',
-    theme: savedTheme === 'dark' ? 'vs-dark' : 'vs',
-    automaticLayout: true,
-    fontSize: 14,
-    lineNumbers: 'on',
-    wordWrap: 'on',
-    minimap: { enabled: false },
-    scrollBeyondLastLine: false,
-    tabSize: 2,
-    renderWhitespace: 'selection',
-  });
-
-  editor.addAction({
-    id: 'toggle-word-wrap-action',
-    label: 'Toggle Word Wrap (Alt+Z)',
-    keybindings: [monaco.KeyMod.Alt | monaco.KeyCode.KeyZ],
-    run: function () {
-      toggleWordWrap();
-    },
-  });
-
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function () {
-    if (elAutoCompileChk && elAutoCompileChk.checked) {
-      triggerCompile();
-    } else {
-      saveContentOnly();
-    }
-  });
-
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, function () {
-    triggerCompile();
-  });
-
   window.addEventListener('keydown', (e) => {
-    if (e.altKey && (e.code === 'KeyZ' || (e.key && e.key.toLowerCase() === 'z'))) {
-      e.preventDefault();
-      toggleWordWrap();
-    } else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
       e.preventDefault();
       if (elAutoCompileChk && elAutoCompileChk.checked) {
         triggerCompile();
@@ -510,9 +329,6 @@ async function init() {
     } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
       triggerCompile();
-    } else if ((e.ctrlKey || e.metaKey) && e.key === '/') {
-      e.preventDefault();
-      setEditorMode(currentMode === 'visual' ? 'code' : 'visual');
     } else if (e.key === 'Escape') {
       dismissLogDrawer();
       if (elFileModal && !elFileModal.classList.contains('hidden')) {
@@ -521,7 +337,6 @@ async function init() {
     }
   });
 
-  // UI Event Listeners
   if (elBtnRecompile) {
     elBtnRecompile.addEventListener('click', () => {
       userDismissedLogs = false;
@@ -623,7 +438,7 @@ async function init() {
   // Visual Content Change Observer
   if (elVisualBody) {
     new MutationObserver(() => {
-      if (currentMode === 'visual' && currentFileInfo && getCurrentContent() !== savedContent) {
+      if (currentFileInfo && getCurrentContent() !== savedContent) {
         scheduleAutoCompile();
       }
     }).observe(elVisualBody, {
@@ -633,6 +448,17 @@ async function init() {
       attributes: true,
       attributeFilter: ['style', 'data-align', 'data-vspace'],
     });
+  }
+
+  // Window focus listener to immediately reload if file was changed in VS Code
+  window.addEventListener('focus', () => {
+    checkForExternalUpdates();
+  });
+
+  // Background poll every 2 seconds for external edits
+  const updatePoll = setInterval(checkForExternalUpdates, 2000);
+  if (updatePoll && typeof updatePoll.unref === 'function') {
+    updatePoll.unref();
   }
 
   await loadFile();
