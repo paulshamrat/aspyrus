@@ -166,11 +166,16 @@ function setEditorMode(mode) {
     elBtnModeVisual.classList.remove('active');
     currentMode = 'code';
     if (editor) {
-      editor.layout();
-      editor.focus();
-      if (lastActiveVisualSnippet) {
-        setTimeout(() => jumpCodeEditorToSnippet(lastActiveVisualSnippet), 40);
-      }
+      requestAnimationFrame(() => {
+        editor.layout();
+        editor.focus();
+        if (lastActiveVisualSnippet) {
+          jumpCodeEditorToSnippet(lastActiveVisualSnippet);
+        }
+      });
+      setTimeout(() => {
+        if (editor) editor.layout();
+      }, 60);
     }
   } else {
     let currentLineText = '';
