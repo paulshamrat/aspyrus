@@ -316,7 +316,7 @@ export function processChunk(raw, id) {
     }
   }
 
-  // 4. Abstract environment
+  // 4. Abstract environment (clean, publication-standard presentation)
   const abstractMatch = text.match(/^\\begin\{abstract\}([\s\S]*)\\end\{abstract\}$/);
   if (abstractMatch) {
     return {
@@ -324,7 +324,7 @@ export function processChunk(raw, id) {
       raw,
       tag: 'div',
       env: 'abstract',
-      html: `<div class="latex-abstract" data-env="abstract"><div class="abstract-title" contenteditable="false">ABSTRACT</div><div class="abstract-content">${inlineToHtml(abstractMatch[1].trim())}</div></div>`,
+      html: `<div class="latex-abstract" data-env="abstract"><div class="abstract-heading" contenteditable="false">Abstract</div><p class="abstract-body">${inlineToHtml(abstractMatch[1].trim())}</p></div>`,
     };
   }
 
@@ -395,10 +395,31 @@ export function parseDocument(source) {
   const rawChunks = splitBodyChunks(body);
   const blocks = rawChunks.map((raw, id) => processChunk(raw, id));
 
+  // Extract paper title if present in source (preamble or body)
+  let titleInfo = null;
+  const titleMatch = source.match(/\\title\{/);
+  if (titleMatch) {
+    const grp = extractGroup(source, titleMatch.index + 6);
+    if (grp) {
+      titleInfo = { text: grp.text.trim() };
+      // Prepend Title Block to canvas
+      blocks.unshift({
+        id: 'title',
+        isTitle: true,
+        tag: 'h1',
+        cmd: 'title',
+        raw: `\\title{${grp.text}}`,
+        html: `<h1 class="latex-title" data-cmd="title">${inlineToHtml(grp.text.trim())}</h1>`,
+        snapshot: `<h1 class="latex-title" data-cmd="title">${inlineToHtml(grp.text.trim())}</h1>`,
+      });
+    }
+  }
+
   return {
     preamble,
     suffix,
     blocks,
+    titleInfo,
     original: source,
   };
 }
@@ -465,49 +486,47 @@ export function domNodeToLatex(node) {
 }
 
 /**
- * Serializes a block container element back into LaTeX block syntax.
+ * Serializes an element back into LaTeX block syntax.
  */
 export function serializeDomBlock(element, originalBlock) {
   if (originalBlock && (originalBlock.protected || originalBlock.hidden)) {
     return originalBlock.raw;
   }
 
-  const child = element.firstElementChild;
-  if (!child) {
-    const text = element.textContent.trim();
-    return text ? `${escapeLatex(text)}\n\n` : '';
-  }
-
-  // Headings: h2, h3, h4, h5
-  if (/^H[2-5]$/.test(child.tagName)) {
-    const cmd = child.dataset.cmd || (child.tagName === 'H2' ? 'section' : child.tagName === 'H3' ? 'subsection' : child.tagName === 'H4' ? 'subsubsection' : 'paragraph');
-    const content = [...child.childNodes].map(domNodeToLatex).join('').trim();
+  // 1. Headings (h2, h3, h4, h5)
+  const heading = element.querySelector('h2, h3, h4, h5') || (['H2','H3','H4','H5'].includes(element.tagName) ? element : null);
+  if (heading) {
+    const cmd = heading.dataset.cmd || (heading.tagName === 'H2' ? 'section' : heading.tagName === 'H3' ? 'subsection' : heading.tagName === 'H4' ? 'subsubsection' : 'paragraph');
+    const content = [...heading.childNodes].map(domNodeToLatex).join('').trim();
     return `\\${cmd}{${content}}\n\n`;
   }
 
-  // Abstract
-  if (child.classList.contains('latex-abstract') || child.dataset.env === 'abstract') {
-    const bodyEl = child.querySelector('.abstract-content') || child;
+  // 2. Abstract
+  const abstractEl = element.classList?.contains('latex-abstract') ? element : element.querySelector?.('.latex-abstract');
+  if (abstractEl) {
+    const bodyEl = abstractEl.querySelector?.('.abstract-body') || abstractEl.querySelector?.('.abstract-content') || abstractEl;
     const content = [...bodyEl.childNodes].map(domNodeToLatex).join('').trim();
     return `\\begin{abstract}\n${content}\n\\end{abstract}\n\n`;
   }
 
-  // Lists: ul, ol
-  if (child.tagName === 'UL' || child.tagName === 'OL') {
-    const env = child.dataset.env || (child.tagName === 'UL' ? 'itemize' : 'enumerate');
-    const items = [...child.querySelectorAll('li')]
+  // 3. Lists
+  const listEl = element.querySelector?.('ul, ol') || (['UL', 'OL'].includes(element.tagName) ? element : null);
+  if (listEl) {
+    const env = listEl.dataset?.env || (listEl.tagName === 'UL' ? 'itemize' : 'enumerate');
+    const items = [...(listEl.querySelectorAll ? listEl.querySelectorAll('li') : [])]
       .map((li) => `\\item ${[...li.childNodes].map(domNodeToLatex).join('').trim()}`)
       .join('\n');
     return `\\begin{${env}}\n${items}\n\\end{${env}}\n\n`;
   }
 
-  // Protected Cards: keep raw
-  if (child.classList.contains('latex-protected-card') && originalBlock) {
+  // 4. Protected Cards: keep raw
+  if (element.classList?.contains('latex-protected-card') && originalBlock) {
     return originalBlock.raw;
   }
 
-  // Default Paragraph
-  const content = [...child.childNodes].map(domNodeToLatex).join('').trim();
+  // 5. Default Paragraph
+  const p = element.querySelector('p') || element;
+  const content = [...p.childNodes].map(domNodeToLatex).join('').trim();
   return content ? `${content}\n\n` : '';
 }
 
@@ -518,23 +537,35 @@ export function serializeDocument(parsedDoc, container) {
   if (!parsedDoc || !container) return '';
 
   let body = '';
-  // Map rendered DOM elements by block ID
-  const domMap = new Map();
-  for (const child of container.children) {
-    if (child.dataset.blockId !== undefined) {
-      domMap.set(Number(child.dataset.blockId), child);
+  let preamble = parsedDoc.preamble;
+
+  // 1. Check if paper title was edited
+  const titleEl = container.querySelector('[data-cmd="title"]');
+  if (titleEl && parsedDoc.titleInfo) {
+    const newTitle = [...titleEl.childNodes].map(domNodeToLatex).join('').trim();
+    if (newTitle && newTitle !== parsedDoc.titleInfo.text) {
+      preamble = preamble.replace(/\\title\{[\s\S]*?\}/, `\\title{${newTitle}}`);
     }
   }
 
+  // 2. Map DOM blocks by ID
+  const domMap = new Map();
+  for (const child of container.children) {
+    if (child.dataset.blockId !== undefined) {
+      domMap.set(String(child.dataset.blockId), child);
+    }
+  }
+
+  // 3. Reconstruct body sequentially
   for (let id = 0; id < parsedDoc.blocks.length; id++) {
     const block = parsedDoc.blocks[id];
-    const el = domMap.get(id);
+    if (block.isTitle) continue; // title serialized in preamble
 
-    // If block is hidden or protected, preserve byte-for-byte
+    const el = domMap.get(String(block.id));
+
     if (!el || block.hidden || block.protected) {
       body += block.raw;
     } else {
-      // If block in DOM is identical to snapshot, emit raw
       if (el.innerHTML === block.snapshot) {
         body += block.raw;
       } else {
@@ -543,5 +574,5 @@ export function serializeDocument(parsedDoc, container) {
     }
   }
 
-  return parsedDoc.preamble + body + parsedDoc.suffix;
+  return preamble + body + parsedDoc.suffix;
 }

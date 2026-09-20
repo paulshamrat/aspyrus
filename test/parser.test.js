@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseDocument, serializeDocument, inlineToHtml, escapeLatex } from '../src/parser.js';
-import { JSDOM } from 'jsdom';
 import fs from 'node:fs';
 
 test('escapeLatex preserves ties and escapes reserved chars', () => {
@@ -17,26 +16,45 @@ test('inlineToHtml renders colored text, citations, and math', () => {
   assert.ok(html.includes('latex-ref'));
 });
 
-test('roundtrip exact match on kras main.tex with zero edits', () => {
+test('roundtrip exact match on kras main.tex with zero edits and title included', () => {
   const krasPath = '/home/paul/works/alexovlab/manuscript/kras/main.tex';
   if (!fs.existsSync(krasPath)) return;
 
   const originalSource = fs.readFileSync(krasPath, 'utf8');
   const parsed = parseDocument(originalSource);
 
-  const dom = new JSDOM('<!DOCTYPE html><html><body><div id="canvas"></div></body></html>');
-  const doc = dom.window.document;
-  const canvas = doc.getElementById('canvas');
+  assert.ok(parsed.titleInfo, 'Title should be extracted');
+  assert.equal(
+    parsed.titleInfo.text,
+    'Oncogenic KRAS Mutations Alter Switch II Dynamics and Conformational Flexibility',
+  );
 
+  // Mock DOM container
+  const children = [];
   for (const block of parsed.blocks) {
     if (block.hidden) continue;
-    const el = doc.createElement('div');
-    el.dataset.blockId = String(block.id);
-    el.innerHTML = block.html;
-    block.snapshot = el.innerHTML;
-    canvas.appendChild(el);
+    block.snapshot = block.html;
+    children.push({
+      dataset: { blockId: String(block.id), cmd: block.cmd },
+      innerHTML: block.html,
+      querySelector: () => null,
+      childNodes: [],
+    });
   }
 
-  const result = serializeDocument(parsed, canvas);
+  const mockContainer = {
+    children,
+    querySelector: (selector) => {
+      if (selector === '[data-cmd="title"]') {
+        return {
+          dataset: { cmd: 'title' },
+          childNodes: [{ nodeType: 3, textContent: parsed.titleInfo.text }],
+        };
+      }
+      return null;
+    },
+  };
+
+  const result = serializeDocument(parsed, mockContainer);
   assert.equal(result, originalSource);
 });
