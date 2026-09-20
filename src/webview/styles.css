@@ -290,15 +290,25 @@ body {
 
 .paper-canvas p.latex-paragraph {
   margin-bottom: 14px;
-  text-align: justify;
-  text-justify: inter-word;
+  text-align: left;
   line-height: 1.65;
+}
+
+.paper-canvas code {
+  font-family: var(--vscode-editor-font-family, "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace);
+  font-size: 0.9em;
+  background: transparent;
+  color: inherit;
+  border: none;
+  padding: 0;
+  border-radius: 0;
 }
 
 .paper-canvas ul.latex-list,
 .paper-canvas ol.latex-list {
   margin-bottom: 14px;
   padding-left: 24px;
+  text-align: left;
 }
 
 .paper-canvas li {
@@ -325,7 +335,7 @@ body {
 .abstract-body {
   font-size: 1.0em;
   line-height: 1.65;
-  text-align: justify;
+  text-align: left;
 }
 
 /* Protected Tokens: Math, Citations, References */
@@ -339,9 +349,9 @@ body {
   background: transparent;
   color: inherit;
   border: none;
-  font-family: var(--font-serif);
-  font-style: italic;
-  padding: 0 1px;
+  font-family: inherit;
+  font-style: normal;
+  padding: 0;
   margin: 0;
   font-size: 1.0em;
 }
