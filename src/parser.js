@@ -141,7 +141,7 @@ export function inlineToHtml(source) {
       if (end >= 0) {
         const raw = source.slice(i, end + 1);
         const display = formatMathForDisplay(raw);
-        html += `<span class="latex-token latex-math" contenteditable="false" data-latex="${escapeHtml(raw)}" title="Math: ${escapeHtml(raw)}">${display}</span>`;
+        html += `<span class="latex-token latex-math" data-latex="${escapeHtml(raw)}" data-initial="${escapeHtml(display)}" title="Math: ${escapeHtml(raw)}">${display}</span>`;
         i = end + 1;
         continue;
       }
@@ -513,6 +513,78 @@ export function parseDocument(source) {
 }
 
 /**
+ * Converts edited math Unicode text back to valid LaTeX math syntax.
+ */
+export function mathTextToLatex(text) {
+  let out = String(text);
+  const operatorMap = [
+    [/\s*±\s*/g, ' \\pm '],
+    [/–/g, '\\text{--}'],
+    [/—/g, '\\text{---}'],
+    [/\s*≥\s*/g, ' \\ge '],
+    [/\s*≤\s*/g, ' \\le '],
+    [/\s*≈\s*/g, ' \\approx '],
+    [/\s*≠\s*/g, ' \\neq '],
+    [/\s*×\s*/g, ' \\times '],
+    [/\s*·\s*/g, ' \\cdot '],
+    [/\s*→\s*/g, ' \\to '],
+    [/\s*∈\s*/g, ' \\in '],
+    [/\s*°\s*/g, '^\\circ '],
+    [/Å/g, '\\AA '],
+  ];
+
+  for (const [pattern, repl] of operatorMap) {
+    out = out.replace(pattern, repl);
+  }
+
+  const greekMap = {
+    'α': '\\alpha ',
+    'β': '\\beta ',
+    'γ': '\\gamma ',
+    'δ': '\\delta ',
+    'Δ': '\\Delta ',
+    'ε': '\\epsilon ',
+    'θ': '\\theta ',
+    'λ': '\\lambda ',
+    'μ': '\\mu ',
+    'π': '\\pi ',
+    'σ': '\\sigma ',
+    'φ': '\\phi ',
+    'ω': '\\omega ',
+    '∞': '\\infty ',
+    '⟨': '\\langle ',
+    '⟩': '\\rangle ',
+    '%': '\\%',
+  };
+
+  for (const [uni, cmd] of Object.entries(greekMap)) {
+    out = out.replaceAll(uni, cmd);
+  }
+
+  return out;
+}
+
+/**
+ * Recursively converts a math DOM node tree back to LaTeX math.
+ */
+export function domMathToLatex(node) {
+  if (!node) return '';
+  if (node.nodeType === 3) {
+    return mathTextToLatex(node.textContent);
+  }
+  if (node.nodeType !== 1) return '';
+
+  const tag = (node.tagName || '').toUpperCase();
+  const inner = [...(node.childNodes || [])].map(domMathToLatex).join('');
+
+  if (tag === 'SUB') return `_{${inner}}`;
+  if (tag === 'SUP') return `^{${inner}}`;
+  if (tag === 'STRONG' || tag === 'B') return `\\mathbf{${inner}}`;
+  if (tag === 'EM' || tag === 'I') return `\\mathit{${inner}}`;
+  return inner;
+}
+
+/**
  * Converts an edited DOM node back to LaTeX syntax.
  */
 export function domNodeToLatex(node) {
@@ -526,8 +598,21 @@ export function domNodeToLatex(node) {
   // 2. Not an Element
   if (node.nodeType !== 1) return '';
 
-  // 3. Protected Token with explicit LaTeX data
-  if (node.dataset.latex !== undefined) {
+  // 3. Math Token (editable by user)
+  const isMath = node.classList?.contains('latex-math') || (typeof node.className === 'string' && node.className.includes('latex-math'));
+  if (isMath) {
+    if (node.dataset?.latex !== undefined) {
+      const expected = formatMathForDisplay(node.dataset.latex);
+      if (node.innerHTML === expected || (node.dataset?.initial !== undefined && node.innerHTML === node.dataset.initial)) {
+        return node.dataset.latex;
+      }
+    }
+    const inner = [...(node.childNodes || [])].map(domMathToLatex).join('').trim();
+    return inner ? `$${inner}$` : '';
+  }
+
+  // 4. Other Protected Tokens with explicit LaTeX data
+  if (node.dataset?.latex !== undefined) {
     return node.dataset.latex;
   }
 

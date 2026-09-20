@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseDocument, serializeDocument, inlineToHtml, escapeLatex } from '../src/parser.js';
+import { parseDocument, serializeDocument, inlineToHtml, escapeLatex, domNodeToLatex } from '../src/parser.js';
 import fs from 'node:fs';
 
 test('escapeLatex preserves ties and escapes reserved chars', () => {
@@ -41,6 +41,49 @@ test('ties and dashes are correctly rendered and escaped back to LaTeX', () => {
   assert.ok(roundtripped.includes('Figure~1'));
   assert.ok(roundtripped.includes('14.76--15.37~'));
   assert.ok(roundtripped.includes('---allosteric'));
+});
+
+test('math tokens can be edited and serialize back to updated LaTeX numbers', () => {
+
+  // 1. Untouched math node preserves original LaTeX
+  const untouchedNode = {
+    nodeType: 1,
+    className: 'latex-token latex-math',
+    innerHTML: '300 ± 2',
+    dataset: { latex: '$300 \\pm 2$', initial: '300 ± 2' },
+    childNodes: [{ nodeType: 3, textContent: '300 ± 2' }],
+  };
+  assert.equal(domNodeToLatex(untouchedNode), '$300 \\pm 2$');
+
+  // 2. Edited number inside math node updates cleanly
+  const editedNumberNode = {
+    nodeType: 1,
+    className: 'latex-token latex-math',
+    innerHTML: '310 ± 2',
+    dataset: { latex: '$300 \\pm 2$', initial: '300 ± 2' },
+    childNodes: [{ nodeType: 3, textContent: '310 ± 2' }],
+  };
+  assert.equal(domNodeToLatex(editedNumberNode), '$310 \\pm 2$');
+
+  // 3. Edited inequality / comparison
+  const editedCompNode = {
+    nodeType: 1,
+    className: 'latex-token latex-math',
+    innerHTML: '&lt;9.5',
+    dataset: { latex: '$<9.0$', initial: '&lt;9.0' },
+    childNodes: [{ nodeType: 3, textContent: '<9.5' }],
+  };
+  assert.equal(domNodeToLatex(editedCompNode), '$<9.5$');
+
+  // 4. Edited RMSD tolerance
+  const editedRMSDNode = {
+    nodeType: 1,
+    className: 'latex-token latex-math',
+    innerHTML: '1.45 ± 0.10',
+    dataset: { latex: '$1.44 \\pm 0.10$', initial: '1.44 ± 0.10' },
+    childNodes: [{ nodeType: 3, textContent: '1.45 ± 0.10' }],
+  };
+  assert.equal(domNodeToLatex(editedRMSDNode), '$1.45 \\pm 0.10$');
 });
 
 test('roundtrip exact match on kras main.tex with zero edits and title included', () => {
