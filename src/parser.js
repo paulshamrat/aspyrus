@@ -12,6 +12,8 @@ export const escapeHtml = (text) =>
 export const escapeLatex = (text) =>
   String(text)
     .replace(/\u00A0/g, '~')
+    .replace(/\u2014/g, '---')
+    .replace(/\u2013/g, '--')
     .replace(
       /[\\{}$&#%_^]/g,
       (c) =>
@@ -49,7 +51,74 @@ export function extractGroup(source, start) {
 }
 
 /**
- * Renders inline LaTeX syntax into rich HTML with protected tokens.
+ * Pretty-prints inline LaTeX math into clean Unicode typography for the editor.
+ */
+export function formatMathForDisplay(mathRaw) {
+  let text = String(mathRaw || '').trim();
+  if (text.startsWith('$') && text.endsWith('$')) {
+    text = text.slice(1, -1).trim();
+  }
+
+  // 1. Unpack font / text commands
+  text = text.replace(/\\(?:text|mathrm|mathbf|mathit|boldsymbol)\{([^}]+)\}/g, '$1');
+
+  // 2. Escape HTML special characters so <, >, & do not corrupt the DOM
+  text = escapeHtml(text);
+
+  const mathSymbols = {
+    '\\alpha': 'α',
+    '\\beta': 'β',
+    '\\gamma': 'γ',
+    '\\delta': 'δ',
+    '\\Delta': 'Δ',
+    '\\epsilon': 'ε',
+    '\\theta': 'θ',
+    '\\lambda': 'λ',
+    '\\mu': 'μ',
+    '\\pi': 'π',
+    '\\sigma': 'σ',
+    '\\phi': 'φ',
+    '\\omega': 'ω',
+    '\\pm': '±',
+    '\\mp': '∓',
+    '\\times': '×',
+    '\\cdot': '·',
+    '\\ge': '≥',
+    '\\geq': '≥',
+    '\\le': '≤',
+    '\\leq': '≤',
+    '\\approx': '≈',
+    '\\sim': '~',
+    '\\neq': '≠',
+    '\\in': '∈',
+    '\\infty': '∞',
+    '\\to': '→',
+    '\\rightarrow': '→',
+    '\\AA': 'Å',
+    '\\circ': '°',
+    '\\langle': '⟨',
+    '\\rangle': '⟩',
+  };
+
+  for (const [cmd, unicode] of Object.entries(mathSymbols)) {
+    text = text.replace(new RegExp(cmd.replace(/\\/g, '\\\\') + '(?![a-zA-Z])', 'g'), unicode);
+  }
+
+  // 3. LaTeX escaped symbols and spacing
+  text = text.replace(/\\([%$&#_{}])/g, '$1');
+  text = text.replace(/--/g, '–');
+  text = text.replace(/_\{([^}]+)\}/g, '<sub>$1</sub>');
+  text = text.replace(/_([+\-a-zA-Z0-9])/g, '<sub>$1</sub>');
+  text = text.replace(/\^\{([^}]+)\}/g, '<sup>$1</sup>');
+  text = text.replace(/\^([+\-a-zA-Z0-9])/g, '<sup>$1</sup>');
+  text = text.replace(/\\[,;: ]/g, ' ');
+  text = text.replace(/\\(?:quad|qquad)/g, ' ');
+
+  return text;
+}
+
+/**
+ * Renders inline LaTeX syntax into rich, publication-standard HTML.
  */
 export function inlineToHtml(source) {
   let html = '';
@@ -71,8 +140,8 @@ export function inlineToHtml(source) {
       const end = source.indexOf('$', i + 1);
       if (end >= 0) {
         const raw = source.slice(i, end + 1);
-        const math = raw.slice(1, -1).trim();
-        html += `<span class="latex-token latex-math" contenteditable="false" data-latex="${escapeHtml(raw)}" title="Math: ${escapeHtml(raw)}">${escapeHtml(math || raw)}</span>`;
+        const display = formatMathForDisplay(raw);
+        html += `<span class="latex-token latex-math" contenteditable="false" data-latex="${escapeHtml(raw)}" title="Math: ${escapeHtml(raw)}">${display}</span>`;
         i = end + 1;
         continue;
       }
@@ -87,7 +156,26 @@ export function inlineToHtml(source) {
       continue;
     }
 
-    // 4. Backslash commands & escaped symbols
+    // 4. LaTeX tie ~ (non-breaking space)
+    if (source[i] === '~') {
+      html += '&nbsp;';
+      i++;
+      continue;
+    }
+
+    // 5. En-dash -- and Em-dash ---
+    if (source[i] === '-' && source[i + 1] === '-') {
+      if (source[i + 2] === '-') {
+        html += '—'; // em-dash
+        i += 3;
+        continue;
+      }
+      html += '–'; // en-dash
+      i += 2;
+      continue;
+    }
+
+    // 6. Backslash commands & escaped symbols
     if (source[i] === '\\') {
       const nextChar = source[i + 1];
 
@@ -140,7 +228,7 @@ export function inlineToHtml(source) {
           if (keysGroup) {
             const keys = keysGroup.text.trim();
             const raw = source.slice(i, keysGroup.end);
-            html += `<span class="latex-token latex-cite" contenteditable="false" data-latex="${escapeHtml(raw)}" title="Citation: ${escapeHtml(keys)}">[cite: ${escapeHtml(keys)}]</span>`;
+            html += `<span class="latex-token latex-cite" contenteditable="false" data-latex="${escapeHtml(raw)}" title="Citation: ${escapeHtml(keys)}">[${escapeHtml(keys)}]</span>`;
             i = keysGroup.end;
             continue;
           }
@@ -152,7 +240,7 @@ export function inlineToHtml(source) {
           if (refGroup) {
             const target = refGroup.text.trim();
             const raw = source.slice(i, refGroup.end);
-            html += `<span class="latex-token latex-ref" contenteditable="false" data-latex="${escapeHtml(raw)}" title="Reference: ${escapeHtml(target)}">[ref: ${escapeHtml(target)}]</span>`;
+            html += `<span class="latex-token latex-ref" contenteditable="false" data-latex="${escapeHtml(raw)}" title="Reference: ${escapeHtml(target)}">[${escapeHtml(target)}]</span>`;
             i = refGroup.end;
             continue;
           }
@@ -494,9 +582,9 @@ export function serializeDomBlock(element, originalBlock) {
   }
 
   // 1. Headings (h2, h3, h4, h5)
-  const heading = element.querySelector('h2, h3, h4, h5') || (['H2','H3','H4','H5'].includes(element.tagName) ? element : null);
+  const heading = element.querySelector?.('h2, h3, h4, h5') || (['H2','H3','H4','H5'].includes(element.tagName) ? element : null);
   if (heading) {
-    const cmd = heading.dataset.cmd || (heading.tagName === 'H2' ? 'section' : heading.tagName === 'H3' ? 'subsection' : heading.tagName === 'H4' ? 'subsubsection' : 'paragraph');
+    const cmd = heading.dataset?.cmd || (heading.tagName === 'H2' ? 'section' : heading.tagName === 'H3' ? 'subsection' : heading.tagName === 'H4' ? 'subsubsection' : 'paragraph');
     const content = [...heading.childNodes].map(domNodeToLatex).join('').trim();
     return `\\${cmd}{${content}}\n\n`;
   }
@@ -525,7 +613,7 @@ export function serializeDomBlock(element, originalBlock) {
   }
 
   // 5. Default Paragraph
-  const p = element.querySelector('p') || element;
+  const p = element.querySelector?.('p') || element;
   const content = [...p.childNodes].map(domNodeToLatex).join('').trim();
   return content ? `${content}\n\n` : '';
 }
@@ -540,7 +628,7 @@ export function serializeDocument(parsedDoc, container) {
   let preamble = parsedDoc.preamble;
 
   // 1. Check if paper title was edited
-  const titleEl = container.querySelector('[data-cmd="title"]');
+  const titleEl = container.querySelector?.('[data-cmd="title"]');
   if (titleEl && parsedDoc.titleInfo) {
     const newTitle = [...titleEl.childNodes].map(domNodeToLatex).join('').trim();
     if (newTitle && newTitle !== parsedDoc.titleInfo.text) {
@@ -551,7 +639,7 @@ export function serializeDocument(parsedDoc, container) {
   // 2. Map DOM blocks by ID
   const domMap = new Map();
   for (const child of container.children) {
-    if (child.dataset.blockId !== undefined) {
+    if (child.dataset?.blockId !== undefined) {
       domMap.set(String(child.dataset.blockId), child);
     }
   }

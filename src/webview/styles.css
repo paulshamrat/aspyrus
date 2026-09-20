@@ -330,46 +330,70 @@ body {
 
 /* Protected Tokens: Math, Citations, References */
 .latex-token {
-  display: inline-flex;
-  align-items: baseline;
-  padding: 0 4px;
-  border-radius: 3px;
-  font-size: 0.94em;
   user-select: all;
   vertical-align: baseline;
-  margin: 0 1px;
 }
 
 .latex-token.latex-math {
-  background-color: var(--math-bg);
-  color: var(--text-main);
-  border: 1px solid var(--math-border);
+  display: inline;
+  background: transparent;
+  color: inherit;
+  border: none;
   font-family: var(--font-serif);
   font-style: italic;
+  padding: 0 1px;
+  margin: 0;
+  font-size: 1.0em;
+}
+
+.latex-token.latex-math sub,
+.latex-token.latex-math sup {
+  font-size: 0.75em;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+  font-style: normal;
+}
+
+.latex-token.latex-math sub {
+  bottom: -0.22em;
+}
+
+.latex-token.latex-math sup {
+  top: -0.38em;
+}
+
+.latex-token.latex-cite,
+.latex-token.latex-ref {
+  display: inline-block;
+  padding: 0 4px;
+  border-radius: 3px;
+  background-color: var(--chip-bg);
+  border: 1px solid var(--chip-border);
+  font-family: var(--font-sans);
+  font-size: 0.88em;
+  font-weight: 500;
+  margin: 0 2px;
+  user-select: all;
+  vertical-align: baseline;
 }
 
 .latex-token.latex-cite {
-  background-color: var(--chip-bg);
   color: var(--primary);
-  border: 1px solid var(--chip-border);
-  font-family: monospace;
-  font-size: 0.88em;
-  font-weight: 500;
 }
 
 .latex-token.latex-ref {
-  background-color: var(--chip-bg);
   color: var(--success);
-  border: 1px solid var(--chip-border);
-  font-family: monospace;
-  font-size: 0.88em;
-  font-weight: 500;
 }
 
 .latex-token.latex-symbol {
+  display: inline;
   background: transparent;
-  font-weight: 600;
-  padding: 0 2px;
+  color: inherit;
+  border: none;
+  font-weight: inherit;
+  padding: 0;
+  margin: 0;
 }
 
 /* Colored text */
