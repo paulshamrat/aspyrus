@@ -19,7 +19,7 @@
       {
         "command": "localleaf.open",
         "title": "Edit Text (LocalLeaf)",
-        "icon": "$(book)"
+        "icon": "$(edit)"
       }
     ],
     "menus": {
