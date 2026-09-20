@@ -1,0 +1,15 @@
+.git/**
+.github/**
+node_modules/**
+backend/**
+editor/**
+vscode/**
+demo/**
+examples/**
+scripts/**
+test/**
+*.vsix
+.prettier*
+eslint*
+*.log
+.DS_Store

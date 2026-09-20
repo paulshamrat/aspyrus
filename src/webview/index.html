@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LocalLeaf Editor</title>
+  <link rel="stylesheet" href="{{stylesUri}}">
+</head>
+<body>
+  <!-- Top Minimal Toolbar -->
+  <header class="toolbar">
+    <div class="toolbar-left">
+      <div class="brand">
+        <span class="brand-icon">🍃</span>
+        <span class="brand-name">LocalLeaf</span>
+      </div>
+      <div class="file-info" title="Current LaTeX File">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="file-name">Loading document...</span>
+      </div>
+      <span class="status-text" id="status-text">Ready</span>
+    </div>
+
+    <div class="toolbar-center">
+      <!-- Formatting Buttons -->
+      <div class="btn-group">
+        <button class="tool-btn" id="btn-bold" title="Bold (Ctrl+B)"><strong>B</strong></button>
+        <button class="tool-btn" id="btn-italic" title="Italic (Ctrl+I)"><em>I</em></button>
+        <button class="tool-btn" id="btn-underline" title="Underline (Ctrl+U)"><u>U</u></button>
+      </div>
+
+      <div class="btn-group">
+        <button class="tool-btn" id="btn-h2" title="Section Heading (H2)">H2</button>
+        <button class="tool-btn" id="btn-h3" title="Subsection Heading (H3)">H3</button>
+        <button class="tool-btn" id="btn-list" title="Bullet List">• List</button>
+      </div>
+
+      <!-- Color Presets -->
+      <div class="color-picker-group" title="Text Color Presets">
+        <span class="color-dot black" data-color="black" title="Default (Black)"></span>
+        <span class="color-dot blue" data-color="blue" title="Blue (\textcolor{blue})"></span>
+        <span class="color-dot red" data-color="red" title="Red (\textcolor{red})"></span>
+      </div>
+    </div>
+
+    <div class="toolbar-right">
+      <button class="btn-primary" id="btn-save" title="Save changes directly to .tex file (Ctrl+S)">
+        <span>💾</span>
+        <span>Save</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Document Paper Canvas -->
+  <main class="editor-viewport">
+    <div class="paper-canvas" id="paper-canvas" contenteditable="true" spellcheck="true" autocomplete="off">
+      <!-- Structured LaTeX blocks dynamically rendered here -->
+    </div>
+  </main>
+
+  <script src="{{scriptUri}}"></script>
+</body>
+</html>

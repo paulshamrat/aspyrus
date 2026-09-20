@@ -1,11 +1,19 @@
-# LocalLeaf development
+# LocalLeaf Development & Maintenance Rules
 
-- Work on `dev1` or a feature branch; do not modify `main` directly.
-- Preserve user edits and keep personal demos and generated output untracked.
-- Use Ruff for Python; ESLint and Prettier for JavaScript and repository documents.
-- Run lint, format checks, Python tests, JavaScript tests, editor build, wheel build,
-  and VSIX packaging before declaring a release candidate ready.
-- LaTeX source is authoritative. Unknown syntax must survive unchanged.
-- Document identities and revisions are required for all writes.
-- Keep browser and VS Code behavior shared; no personal filesystem paths in code.
-- Do not publish or push without an explicit user request.
+## Architecture
+- LocalLeaf is a minimal, native VS Code and Antigravity IDE extension for distraction-free LaTeX text editing.
+- No backend servers, no loopback ports, no Python dependencies, and no DOCX exporters.
+- LaTeX source is authoritative: all unedited content (preamble, environments, math tokens, comments) must survive unchanged byte-for-byte.
+
+## Directory Structure
+- `src/extension.js`: Native VS Code extension controller (registers command, editor/title button, WebviewPanel IPC, file saves).
+- `src/parser.js`: Robust, lightweight LaTeX parser and serializer with 100% byte-for-byte fidelity for untouched blocks.
+- `src/webview/`: Webview UI (`index.html`, `styles.css`, `editor.js`, and compiled `bundle.js`).
+- `package.json`: Extension manifest and packaging scripts.
+- `localleaf-0.2.0.vsix`: Packaged extension deliverable.
+
+## Development Workflow
+- Work on `dev2` or a dedicated feature branch; do not modify `main` directly.
+- To rebuild webview assets: `npm run bundle`
+- To package the extension: `npm run package`
+- Install into IDE: `code --install-extension localleaf-0.2.0.vsix`

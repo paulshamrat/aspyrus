@@ -1,8 +1,0 @@
-include package.json package-lock.json eslint.config.js .prettierrc.json .prettierignore
-include README.md LICENSE AGENTS.md
-recursive-include editor *.js *.html *.css
-recursive-include scripts *.mjs
-recursive-include vscode *.cjs *.json *.md LICENSE .vscodeignore
-recursive-include backend/tests *.py
-recursive-include examples *.tex *.toml
-prune examples/article/.localleaf_build
