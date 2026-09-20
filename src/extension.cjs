@@ -2,46 +2,29 @@ const vscode = require('vscode');
 const path = require('node:path');
 const fs = require('node:fs');
 
+function isSameFile(uriA, uriB) {
+  if (!uriA || !uriB) return false;
+  if (uriA.toString() === uriB.toString()) return true;
+  try {
+    return fs.realpathSync(uriA.fsPath) === fs.realpathSync(uriB.fsPath);
+  } catch {
+    return false;
+  }
+}
+
 function activate(context) {
-  // Track open panels per file URI string
+  const output = vscode.window.createOutputChannel('LocalLeaf');
+  context.subscriptions.push(output);
+
+  // Map of canonical file path -> WebviewPanel
   const activePanels = new Map();
 
-  const openCommand = vscode.commands.registerCommand('localleaf.open', async (uri) => {
-    let targetUri = uri;
-    if (!targetUri && vscode.window.activeTextEditor) {
-      targetUri = vscode.window.activeTextEditor.document.uri;
-    }
-
-    if (!targetUri || targetUri.scheme !== 'file' || !targetUri.fsPath.toLowerCase().endsWith('.tex')) {
-      vscode.window.showInformationMessage('Please open or select a .tex file to edit in LocalLeaf.');
-      return;
-    }
-
-    const doc = await vscode.workspace.openTextDocument(targetUri);
-    const uriString = doc.uri.toString();
-
-    // If panel already exists for this document, reveal it
-    if (activePanels.has(uriString)) {
-      const existingPanel = activePanels.get(uriString);
-      existingPanel.reveal(vscode.ViewColumn.Beside);
-      return;
-    }
-
+  function setupPanel(panel, doc) {
+    const realFilePath = fs.realpathSync(doc.uri.fsPath);
     const fileName = path.basename(doc.fileName);
-    const panel = vscode.window.createWebviewPanel(
-      'localleaf.editor',
-      `Edit: ${fileName}`,
-      vscode.ViewColumn.Beside,
-      {
-        enableScripts: true,
-        retainContextWhenHidden: true,
-        localResourceRoots: [
-          vscode.Uri.file(path.join(context.extensionPath, 'src', 'webview')),
-        ],
-      },
-    );
+    activePanels.set(realFilePath, panel);
 
-    activePanels.set(uriString, panel);
+    output.appendLine(`[LocalLeaf] Opened editor panel for: ${realFilePath}`);
 
     // Read HTML template and resolve webview URIs
     const webviewDir = path.join(context.extensionPath, 'src', 'webview');
@@ -62,9 +45,10 @@ function activate(context) {
     panel.webview.html = htmlContent;
 
     function sendInit() {
+      output.appendLine(`[LocalLeaf] Sending document content (${doc.getText().length} chars)`);
       panel.webview.postMessage({
         command: 'init',
-        filePath: doc.fileName,
+        filePath: realFilePath,
         fileName: fileName,
         content: doc.getText(),
         isDirty: doc.isDirty,
@@ -74,52 +58,111 @@ function activate(context) {
     let isInternalSave = false;
 
     // Handle messages from the webview
-    panel.webview.onDidReceiveMessage(async (message) => {
+    const messageListener = panel.webview.onDidReceiveMessage(async (message) => {
       if (!message) return;
 
       if (message.command === 'ready') {
         sendInit();
       } else if (message.command === 'save') {
+        output.appendLine(`[LocalLeaf] Received save request (${(message.content || '').length} chars)`);
         try {
           isInternalSave = true;
-          const edit = new vscode.WorkspaceEdit();
-          const fullRange = new vscode.Range(
-            doc.positionAt(0),
-            doc.positionAt(doc.getText().length),
-          );
-          edit.replace(doc.uri, fullRange, message.content);
-          const success = await vscode.workspace.applyEdit(edit);
-          if (success) {
+
+          // 1. Guaranteed file save on disk
+          fs.writeFileSync(realFilePath, message.content, 'utf8');
+
+          // 2. Synchronize open VS Code editor buffer if open
+          try {
+            const edit = new vscode.WorkspaceEdit();
+            const fullRange = new vscode.Range(
+              doc.positionAt(0),
+              doc.positionAt(doc.getText().length),
+            );
+            edit.replace(doc.uri, fullRange, message.content);
+            await vscode.workspace.applyEdit(edit);
             await doc.save();
-            panel.webview.postMessage({
-              command: 'saveSuccess',
-              timestamp: Date.now(),
-            });
-          } else {
-            vscode.window.showErrorMessage('LocalLeaf: Could not apply changes to file.');
+          } catch (editErr) {
+            output.appendLine(`[LocalLeaf] WorkspaceEdit warning: ${editErr.message}`);
           }
+
+          // 3. Confirm back to webview immediately
+          panel.webview.postMessage({
+            command: 'saveSuccess',
+            timestamp: Date.now(),
+          });
+          output.appendLine(`[LocalLeaf] Save successful for ${realFilePath}`);
         } catch (err) {
+          output.appendLine(`[LocalLeaf] Save error: ${err.message}`);
           vscode.window.showErrorMessage(`LocalLeaf save error: ${err.message}`);
         } finally {
-          isInternalSave = false;
+          setTimeout(() => {
+            isInternalSave = false;
+          }, 300);
         }
       }
     });
 
-    // Listen for external file modifications
+    // Two-way sync: listen for external edits in the raw LaTeX editor
+    let externalUpdateDebounce = null;
     const docChangeSubscription = vscode.workspace.onDidChangeTextDocument((event) => {
-      if (event.document.uri.toString() === doc.uri.toString() && !isInternalSave) {
-        panel.webview.postMessage({
-          command: 'externalUpdate',
-          content: event.document.getText(),
-        });
+      if (isSameFile(event.document.uri, doc.uri) && !isInternalSave) {
+        clearTimeout(externalUpdateDebounce);
+        externalUpdateDebounce = setTimeout(() => {
+          output.appendLine(`[LocalLeaf] Synchronizing raw editor change to webview...`);
+          panel.webview.postMessage({
+            command: 'externalUpdate',
+            content: event.document.getText(),
+          });
+        }, 200);
       }
     });
 
     panel.onDidDispose(() => {
+      clearTimeout(externalUpdateDebounce);
+      messageListener.dispose();
       docChangeSubscription.dispose();
-      activePanels.delete(uriString);
+      activePanels.delete(realFilePath);
+      output.appendLine(`[LocalLeaf] Panel disposed for: ${realFilePath}`);
     });
+  }
+
+  const openCommand = vscode.commands.registerCommand('localleaf.open', async (uri) => {
+    let targetUri = uri;
+    if (!targetUri && vscode.window.activeTextEditor) {
+      targetUri = vscode.window.activeTextEditor.document.uri;
+    }
+
+    if (!targetUri || targetUri.scheme !== 'file' || !targetUri.fsPath.toLowerCase().endsWith('.tex')) {
+      vscode.window.showInformationMessage('Please open or select a .tex file to edit in LocalLeaf.');
+      return;
+    }
+
+    const doc = await vscode.workspace.openTextDocument(targetUri);
+    const realFilePath = fs.realpathSync(doc.uri.fsPath);
+
+    // If panel already exists for this document, reveal it
+    if (activePanels.has(realFilePath)) {
+      const existingPanel = activePanels.get(realFilePath);
+      existingPanel.reveal(vscode.ViewColumn.Beside);
+      return;
+    }
+
+    const fileName = path.basename(doc.fileName);
+    const panel = vscode.window.createWebviewPanel(
+      'localleaf.editor',
+      `Edit: ${fileName}`,
+      vscode.ViewColumn.Beside,
+      {
+        enableScripts: true,
+        retainContextWhenHidden: true,
+        localResourceRoots: [
+          vscode.Uri.file(path.join(context.extensionPath, 'src', 'webview')),
+        ],
+      },
+    );
+
+    context.subscriptions.push(panel);
+    setupPanel(panel, doc);
   });
 
   context.subscriptions.push(openCommand);
