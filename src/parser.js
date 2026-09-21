@@ -51,7 +51,49 @@ export function extractGroup(source, start) {
 }
 
 /**
- * Pretty-prints inline LaTeX math into clean Unicode typography for the editor.
+ * Expands LaTeX \frac and \sqrt commands with balanced braces into mathematical HTML.
+ */
+export function expandFractionsAndRoots(text) {
+  let out = '';
+  for (let i = 0; i < text.length; ) {
+    if (text.startsWith('\\frac', i)) {
+      let cur = i + 5;
+      while (cur < text.length && /\s/.test(text[cur])) cur++;
+      const numGroup = extractGroup(text, cur);
+      if (numGroup) {
+        cur = numGroup.end;
+        while (cur < text.length && /\s/.test(text[cur])) cur++;
+        const denGroup = extractGroup(text, cur);
+        if (denGroup) {
+          const numHtml = expandFractionsAndRoots(numGroup.text);
+          const denHtml = expandFractionsAndRoots(denGroup.text);
+          out += `<span class="math-frac"><span class="math-num">${numHtml}</span><span class="math-den">${denHtml}</span></span>`;
+          i = denGroup.end;
+          continue;
+        }
+      }
+    }
+
+    if (text.startsWith('\\sqrt', i)) {
+      let cur = i + 5;
+      while (cur < text.length && /\s/.test(text[cur])) cur++;
+      const argGroup = extractGroup(text, cur);
+      if (argGroup) {
+        const argHtml = expandFractionsAndRoots(argGroup.text);
+        out += `<span class="math-sqrt"><span class="math-surd">√</span><span class="math-sqrt-stem">${argHtml}</span></span>`;
+        i = argGroup.end;
+        continue;
+      }
+    }
+
+    out += text[i];
+    i++;
+  }
+  return out;
+}
+
+/**
+ * Pretty-prints LaTeX math into publication-standard mathematical typography.
  */
 export function formatMathForDisplay(mathRaw) {
   let text = String(mathRaw || '').trim();
@@ -59,12 +101,24 @@ export function formatMathForDisplay(mathRaw) {
     text = text.slice(1, -1).trim();
   }
 
-  // 1. Unpack font / text commands
-  text = text.replace(/\\(?:text|mathrm|mathbf|mathit|boldsymbol)\{([^}]+)\}/g, '$1');
+  // 1. Fractions and Square Roots (handled with balanced brace matching)
+  text = expandFractionsAndRoots(text);
 
-  // 2. Escape HTML special characters so <, >, & do not corrupt the DOM
+  // 2. Escape HTML special characters (<, >, &, ", ') so raw signs do not corrupt the DOM,
+  // while preserving generated span tags
+  text = text.replace(/<span class="([^"]+)">|<\/span>/g, '@@TAG_START@@$1@@TAG_MID@@');
   text = escapeHtml(text);
+  text = text.replace(/@@TAG_START@@([^@]+)@@TAG_MID@@/g, '<span class="$1">');
+  text = text.replace(/@@TAG_START@@@@TAG_MID@@/g, '</span>');
 
+  // 3. Mathematical Font Styles & Vectors
+  text = text.replace(/\\(?:mathbf|boldsymbol)\{([^}]+)\}/g, '<strong class="math-bold">$1</strong>');
+  text = text.replace(/\\mathit\{([^}]+)\}/g, '<em class="math-italic">$1</em>');
+  text = text.replace(/\\(?:text|mathrm)\{([^}]+)\}/g, '<span class="math-upright">$1</span>');
+  text = text.replace(/\\mathbb\{([A-Za-z])\}/g, '<span class="math-bb">$1</span>');
+  text = text.replace(/\\mathcal\{([A-Za-z])\}/g, '<span class="math-cal">$1</span>');
+
+  // 5. Greek & Mathematical Symbols
   const mathSymbols = {
     '\\alpha': 'α',
     '\\beta': 'β',
@@ -72,39 +126,91 @@ export function formatMathForDisplay(mathRaw) {
     '\\delta': 'δ',
     '\\Delta': 'Δ',
     '\\epsilon': 'ε',
+    '\\varepsilon': 'ε',
+    '\\zeta': 'ζ',
+    '\\eta': 'η',
     '\\theta': 'θ',
+    '\\Theta': 'Θ',
+    '\\iota': 'ι',
+    '\\kappa': 'κ',
     '\\lambda': 'λ',
+    '\\Lambda': 'Λ',
     '\\mu': 'μ',
+    '\\nu': 'ν',
+    '\\xi': 'ξ',
+    '\\Xi': 'Ξ',
     '\\pi': 'π',
+    '\\Pi': 'Π',
+    '\\rho': 'ρ',
     '\\sigma': 'σ',
+    '\\Sigma': 'Σ',
+    '\\tau': 'τ',
+    '\\upsilon': 'υ',
+    '\\Upsilon': 'Υ',
     '\\phi': 'φ',
+    '\\Phi': 'Φ',
+    '\\chi': 'χ',
+    '\\psi': 'ψ',
+    '\\Psi': 'Ψ',
     '\\omega': 'ω',
+    '\\Omega': 'Ω',
     '\\pm': '±',
     '\\mp': '∓',
     '\\times': '×',
     '\\cdot': '·',
+    '\\div': '÷',
     '\\ge': '≥',
     '\\geq': '≥',
     '\\le': '≤',
     '\\leq': '≤',
     '\\approx': '≈',
     '\\sim': '~',
+    '\\simeq': '≃',
+    '\\cong': '≅',
+    '\\equiv': '≡',
     '\\neq': '≠',
+    '\\ne': '≠',
     '\\in': '∈',
+    '\\notin': '∉',
+    '\\subset': '⊂',
+    '\\subseteq': '⊆',
+    '\\cup': '∪',
+    '\\cap': '∩',
+    '\\forall': '∀',
+    '\\exists': '∃',
+    '\\partial': '∂',
+    '\\nabla': '∇',
     '\\infty': '∞',
     '\\to': '→',
     '\\rightarrow': '→',
+    '\\leftarrow': '←',
+    '\\Rightarrow': '⇒',
+    '\\Leftarrow': '⇐',
+    '\\Leftrightarrow': '⇔',
+    '\\leftrightarrow': '↔',
     '\\AA': 'Å',
     '\\circ': '°',
     '\\langle': '⟨',
     '\\rangle': '⟩',
+    '\\sum': '∑',
+    '\\prod': '∏',
+    '\\int': '∫',
   };
 
   for (const [cmd, unicode] of Object.entries(mathSymbols)) {
     text = text.replace(new RegExp(cmd.replace(/\\/g, '\\\\') + '(?![a-zA-Z])', 'g'), unicode);
   }
 
-  // 3. LaTeX escaped symbols and spacing
+  // 6. Upright math functions
+  const mathFunctions = ['sin', 'cos', 'tan', 'exp', 'ln', 'log', 'min', 'max', 'lim', 'det', 'dim'];
+  for (const fn of mathFunctions) {
+    text = text.replace(new RegExp('\\\\' + fn + '(?![a-zA-Z])', 'g'), `<span class="math-upright">${fn}</span>`);
+  }
+
+  // 7. Remove \left and \right delimiters while preserving brackets
+  text = text.replace(/\\(?:left|right)\s*/g, '');
+
+  // 8. LaTeX escaped symbols and spacing
   text = text.replace(/\\([%$&#_{}])/g, '$1');
   text = text.replace(/--/g, '–');
   text = text.replace(/_\{([^}]+)\}/g, '<sub>$1</sub>');
@@ -112,7 +218,7 @@ export function formatMathForDisplay(mathRaw) {
   text = text.replace(/\^\{([^}]+)\}/g, '<sup>$1</sup>');
   text = text.replace(/\^([+\-a-zA-Z0-9])/g, '<sup>$1</sup>');
   text = text.replace(/\\[,;: ]/g, ' ');
-  text = text.replace(/\\(?:quad|qquad)/g, ' ');
+  text = text.replace(/\\(?:quad|qquad)/g, '  ');
 
   return text;
 }
@@ -432,8 +538,41 @@ export function processChunk(raw, id) {
     };
   }
 
-  // 6. Complex environments to preserve (figures, tables, equations, tikz)
-  if (/^\\begin\{(figure|table|equation|align|gather|tikzpicture|quote|minipage)\*?\}/.test(text)) {
+  // 6. Display Equations: \begin{equation}, \begin{align}, \begin{gather}, \[, $$
+  const eqEnvMatch = text.match(/^\\begin\{(equation|align|gather)(\*?)\}([\s\S]*)\\end\{\1\2\}$/);
+  if (eqEnvMatch) {
+    const envName = eqEnvMatch[1];
+    const isStarred = eqEnvMatch[2] === '*';
+    const innerMath = eqEnvMatch[3].trim();
+    const formattedMath = formatMathForDisplay(innerMath);
+    const numBadge = isStarred ? '' : `<span class="equation-num" contenteditable="false">(${id + 1})</span>`;
+
+    return {
+      id,
+      raw,
+      tag: 'div',
+      env: envName + (isStarred ? '*' : ''),
+      isEquation: true,
+      html: `<div class="latex-equation-block" data-env="${escapeHtml(envName + (isStarred ? '*' : ''))}" data-latex="${escapeHtml(text)}"><div class="equation-content latex-math">${formattedMath}</div>${numBadge}</div>`,
+    };
+  }
+
+  const bracketMatch = text.match(/^\\\[([\s\S]*)\\\]$/) || text.match(/^\$\$([\s\S]*)\$\$$/);
+  if (bracketMatch) {
+    const innerMath = bracketMatch[1].trim();
+    const formattedMath = formatMathForDisplay(innerMath);
+    return {
+      id,
+      raw,
+      tag: 'div',
+      isEquation: true,
+      cmd: text.startsWith('$$') ? '$$' : '\\[',
+      html: `<div class="latex-equation-block" data-cmd="${text.startsWith('$$') ? '$$' : '\\['}" data-latex="${escapeHtml(text)}"><div class="equation-content latex-math">${formattedMath}</div></div>`,
+    };
+  }
+
+  // 7. Complex environments to preserve (figures, tables, tikz, quote, minipage)
+  if (/^\\begin\{(figure|table|tikzpicture|quote|minipage)\*?\}/.test(text)) {
     const captionMatch = text.match(/\\caption\{([^}]+)\}/);
     const envMatch = text.match(/^\\begin\{([^}]+)\}/);
     const envName = envMatch ? envMatch[1] : 'LaTeX Float';
@@ -581,6 +720,32 @@ export function domMathToLatex(node) {
   if (tag === 'SUP') return `^{${inner}}`;
   if (tag === 'STRONG' || tag === 'B') return `\\mathbf{${inner}}`;
   if (tag === 'EM' || tag === 'I') return `\\mathit{${inner}}`;
+
+  if (node.classList?.contains('math-upright') || node.classList?.contains('math-text')) {
+    const trimmed = inner.trim();
+    if (['sin', 'cos', 'tan', 'exp', 'ln', 'log', 'min', 'max', 'lim', 'det'].includes(trimmed)) {
+      return `\\${trimmed} `;
+    }
+    if (/^[\d.,\s+\-±–—]+$/.test(trimmed)) {
+      return inner;
+    }
+    return `\\text{${inner}}`;
+  }
+
+  if (node.classList?.contains('math-frac')) {
+    const num = node.querySelector?.('.math-num');
+    const den = node.querySelector?.('.math-den');
+    const numLatex = num ? domMathToLatex(num) : '';
+    const denLatex = den ? domMathToLatex(den) : '';
+    return `\\frac{${numLatex}}{${denLatex}}`;
+  }
+
+  if (node.classList?.contains('math-sqrt')) {
+    const stem = node.querySelector?.('.math-sqrt-stem');
+    const stemLatex = stem ? domMathToLatex(stem) : '';
+    return `\\sqrt{${stemLatex}}`;
+  }
+
   return inner;
 }
 
@@ -697,7 +862,13 @@ export function serializeDomBlock(element, originalBlock) {
     return originalBlock.raw;
   }
 
-  // 5. Default Paragraph
+  // 5. Equation Blocks: preserve byte-for-byte
+  const eqEl = element.classList?.contains('latex-equation-block') ? element : element.querySelector?.('.latex-equation-block');
+  if (eqEl && originalBlock) {
+    return originalBlock.raw;
+  }
+
+  // 6. Default Paragraph
   const p = element.querySelector?.('p') || element;
   const content = [...p.childNodes].map(domNodeToLatex).join('').trim();
   return content ? `${content}\n\n` : '';

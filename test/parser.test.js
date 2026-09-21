@@ -17,14 +17,15 @@ test('inlineToHtml renders colored text, citations, and math', () => {
 });
 
 test('math typography formats Greek letters, subscripts, superscripts, and operators', () => {
-  const input = '$<9.0$ and $\\alpha/\\beta$ and $R_g \\in [14.76, 15.37]$ and $d_{\\text{pocket}} \\ge 11.0$';
+  const input = '$<9.0$ and $\\alpha/\\beta$ and $R_g \\in [14.76, 15.37]$ and $d_{\\text{pocket}} \\ge 11.0$ and $\\mathbf{r}$';
   const html = inlineToHtml(input);
   assert.ok(html.includes('&lt;9.0'));
   assert.ok(html.includes('α/β'));
   assert.ok(html.includes('R<sub>g</sub>'));
   assert.ok(html.includes('∈'));
-  assert.ok(html.includes('d<sub>pocket</sub>'));
+  assert.ok(html.includes('d<sub><span class="math-upright">pocket</span></sub>'));
   assert.ok(html.includes('≥'));
+  assert.ok(html.includes('<strong class="math-bold">r</strong>'));
   // Ensure raw LaTeX is preserved in data-latex for byte-for-byte serialization
   assert.ok(html.includes('data-latex="$&lt;9.0$"'));
   assert.ok(html.includes('data-latex="$\\alpha/\\beta$"'));
@@ -128,3 +129,18 @@ test('roundtrip exact match on kras main.tex with zero edits and title included'
   const result = serializeDocument(parsed, mockContainer);
   assert.equal(result, originalSource);
 });
+
+test('display equations and fractions/roots render with publication-grade markup', () => {
+  const source = `\\begin{document}
+\\begin{equation}
+E = \\frac{m c^2}{\\sqrt{1 - v^2}}
+\\end{equation}
+\\end{document}`;
+  const parsed = parseDocument(source);
+  const eqBlock = parsed.blocks.find((b) => b.isEquation);
+  assert.ok(eqBlock, 'Equation block should be detected');
+  assert.ok(eqBlock.html.includes('latex-equation-block'));
+  assert.ok(eqBlock.html.includes('math-frac'));
+  assert.ok(eqBlock.html.includes('math-sqrt'));
+});
+

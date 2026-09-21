@@ -358,35 +358,142 @@ body {
   vertical-align: baseline;
 }
 
+/* ==========================================================================
+   LaTeX Math & Equation Typography
+   ========================================================================== */
+
 .latex-token.latex-math {
   display: inline;
   background: transparent;
   color: inherit;
   border: none;
-  font-family: inherit;
-  font-style: normal;
-  padding: 0;
-  margin: 0;
-  font-size: 1.0em;
+  font-family: "Latin Modern Math", "STIX Two Math", "Cambria Math", "TeX Gyre Termes Math", "Times New Roman", Times, "Nimbus Roman", serif;
+  font-style: italic;
+  font-size: 1.05em;
+  letter-spacing: 0.015em;
+  padding: 0 0.08em;
   user-select: text;
   cursor: text;
 }
 
-.latex-token.latex-math sub,
-.latex-token.latex-math sup {
-  font-size: 0.75em;
-  line-height: 0;
-  position: relative;
-  vertical-align: baseline;
+/* Upright elements within math (delimiters, operators, upright text) */
+.latex-token.latex-math .math-upright,
+.latex-token.latex-math .math-text,
+.latex-token.latex-math .math-op,
+.latex-token.latex-math .math-num,
+.latex-token.latex-math .math-surd {
   font-style: normal;
 }
 
+.latex-token.latex-math .math-upright {
+  font-family: var(--font-family);
+  font-size: 0.94em;
+  letter-spacing: 0;
+}
+
+.latex-token.latex-math .math-bold,
+.latex-token.latex-math strong,
+.latex-token.latex-math b {
+  font-weight: 700;
+  font-family: "Latin Modern Math", "STIX Two Math", "Cambria Math", "TeX Gyre Termes Math", "Times New Roman", Times, serif;
+}
+
+.latex-token.latex-math sub,
+.latex-token.latex-math sup {
+  font-size: 0.72em;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+  font-family: "Latin Modern Math", "STIX Two Math", "Cambria Math", "TeX Gyre Termes Math", "Times New Roman", Times, serif;
+}
+
 .latex-token.latex-math sub {
-  bottom: -0.22em;
+  bottom: -0.25em;
 }
 
 .latex-token.latex-math sup {
-  top: -0.38em;
+  top: -0.42em;
+}
+
+/* Fractions */
+.latex-token.latex-math .math-frac,
+.latex-equation-block .math-frac {
+  display: inline-flex;
+  flex-direction: column;
+  vertical-align: -0.62em;
+  text-align: center;
+  padding: 0 0.22em;
+  font-size: 0.92em;
+  line-height: 1.1;
+  font-style: italic;
+}
+
+.latex-token.latex-math .math-frac .math-num,
+.latex-equation-block .math-frac .math-num {
+  border-bottom: 0.08em solid currentColor;
+  padding-bottom: 0.1em;
+  display: block;
+}
+
+.latex-token.latex-math .math-frac .math-den,
+.latex-equation-block .math-frac .math-den {
+  padding-top: 0.1em;
+  display: block;
+}
+
+/* Square Roots */
+.latex-token.latex-math .math-sqrt,
+.latex-equation-block .math-sqrt {
+  display: inline-flex;
+  align-items: baseline;
+  vertical-align: baseline;
+}
+
+.latex-token.latex-math .math-surd,
+.latex-equation-block .math-surd {
+  font-style: normal;
+  font-size: 1.15em;
+  margin-right: 0.06em;
+  line-height: 1;
+}
+
+.latex-token.latex-math .math-sqrt-stem,
+.latex-equation-block .math-sqrt-stem {
+  border-top: 0.08em solid currentColor;
+  padding-top: 0.04em;
+  display: inline-block;
+}
+
+/* Display Equation Blocks */
+.latex-equation-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin: 1.4em 0;
+  padding: 0.85em 1.2em;
+  background: var(--math-bg, #f8fafd);
+  border: 1px solid var(--math-border, #e2e8f0);
+  border-radius: 6px;
+  font-family: "Latin Modern Math", "STIX Two Math", "Cambria Math", "TeX Gyre Termes Math", "Times New Roman", Times, serif;
+  font-size: 1.14em;
+  letter-spacing: 0.015em;
+  overflow-x: auto;
+}
+
+.latex-equation-block .equation-content {
+  flex: 1;
+  text-align: center;
+  font-style: italic;
+}
+
+.latex-equation-block .equation-num {
+  position: absolute;
+  right: 1.2em;
+  font-style: normal;
+  font-size: 0.9em;
+  color: var(--text-muted);
+  user-select: none;
 }
 
 .latex-token.latex-cite,
