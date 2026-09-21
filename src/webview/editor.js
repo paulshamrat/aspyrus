@@ -17,14 +17,17 @@ let autoSaveTimer = null;
 function setStatus(state, message) {
   if (!elStatusDot || !elStatusText) return;
   elStatusDot.className = 'status-dot';
+  if (elBtnSave) elBtnSave.className = 'save-btn';
 
   if (state === 'saved') {
     elStatusText.textContent = message || 'Saved';
   } else if (state === 'dirty') {
     elStatusDot.classList.add('dirty');
+    if (elBtnSave) elBtnSave.classList.add('dirty');
     elStatusText.textContent = message || 'Unsaved edits';
   } else if (state === 'saving') {
     elStatusDot.classList.add('saving');
+    if (elBtnSave) elBtnSave.classList.add('saving');
     elStatusText.textContent = message || 'Saving...';
   }
 }
