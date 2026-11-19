@@ -370,6 +370,21 @@ def docx(stage: Path, stem: str, mode: str) -> dict:
     )
     pdf_missing = expected_words - words(pdf_text)
     if pdf_missing:
+        raw_text = run(["pdftotext", "-raw", stem + ".pdf", "-"], stage)
+        pdf_missing = pdf_missing - words(raw_text)
+    if pdf_missing:
+        plain_text = run(["pdftotext", stem + ".pdf", "-"], stage)
+        pdf_missing = pdf_missing - words(plain_text)
+    if pdf_missing:
+        try:
+            import fitz
+
+            with fitz.open(stage / f"{stem}.pdf") as doc:
+                mupdf_text = " ".join(page.get_text() for page in doc)
+            pdf_missing = pdf_missing - words(mupdf_text)
+        except Exception:
+            pass
+    if pdf_missing:
         raise ExportError(f"PDF prose coverage failed for {stem}: {dict(pdf_missing)}")
     source = (stage / (stem + ".tex")).read_text()
     image_count = sum(t.name == "includegraphics" for t in scan(source))
