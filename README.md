@@ -77,6 +77,24 @@ compiled output; unsupported constructs and complex documents need source editin
   Layout, pagination and equation colours/highlights can differ between office
   applications; inspect the intended application before delivery.
 
+## Repository architecture
+
+```text
+aspyrus/
+├── src/                  # VS Code extension core, editor coordinator & parsers
+│   ├── webview/          # Canvas visual editor (HTML, CSS, JS runtime & bundle)
+│   └── tools/            # Optional compilation, Pandoc/DOCX conversion & audits
+├── example/              # Complete starter manuscript workspace & workflow scripts
+│   ├── main/             # Main article LaTeX source and figures
+│   ├── supplementary/    # Supplementary information LaTeX source
+│   ├── references/       # BibTeX database, DOI lists, and reference audits
+│   └── scripts/          # Build, bibliography, and co-author feedback tools
+├── test/                 # Test suite (JavaScript unit/browser + Python integration)
+├── assets/               # Extension icons, banners, and UI assets
+├── docs/                 # Documentation screenshots and visual diagrams
+└── .github/workflows/    # Automated CI verification and VSIX packaging
+```
+
 ## Documentation
 
 - [Development and contributions](CONTRIBUTING.md)
