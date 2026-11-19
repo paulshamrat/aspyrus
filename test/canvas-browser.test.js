@@ -13,7 +13,11 @@ test('native browser figure cut/paste, undo, and empty subsection Backspace', { 
   t.after(async () => {
     proc.kill();
     await new Promise((resolve) => proc.once('exit', resolve));
-    fs.rmSync(profile, { recursive: true, force: true });
+    try {
+      fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    } catch {
+      // Ignore background chrome profile cleanup lock
+    }
   });
   const port = await new Promise((resolve, reject) => {
     let output = '';
