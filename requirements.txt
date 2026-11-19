@@ -1,0 +1,5 @@
+# Optional compilation, DOCX conversion and returned-document review.
+# The Canvas editor itself requires no Python dependencies.
+pypandoc
+python-docx
+lxml

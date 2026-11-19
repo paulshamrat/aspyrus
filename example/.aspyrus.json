@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "prepare": [
+    "python3",
+    "scripts/bibgen.py"
+  ],
+  "references": {
+    "doi_source": null
+  }
+}

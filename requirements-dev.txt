@@ -1,0 +1,5 @@
+-r requirements.txt
+# Paired example builds and PDF integration tests.
+PyMuPDF
+# Python formatting and lint checks.
+ruff

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 18 88 92" width="64" height="64" aria-label="Aspyrus Logo">
+  <!-- Left stem facet (bright papyrus amber) -->
+  <polygon points="32,102 46,102 64,30 50,30" fill="#F59E0B" />
+  <!-- Right stem facet (deep papyrus amber) -->
+  <polygon points="50,30 64,30 96,102 82,102" fill="#D97706" />
+  <!-- Apex fold triangle (illuminated parchment gold) -->
+  <polygon points="50,30 64,30 57,44" fill="#FEF08A" />
+  <!-- Crossbar inner depth facet -->
+  <polygon points="40,74 44,66 84,66 88,74" fill="#B45309" />
+  <!-- Folded crossbar - front plane (warm marigold gold) -->
+  <polygon points="40,74 88,74 84,86 36,86" fill="#FBBF24" />
+  <!-- Left accent crease fold -->
+  <polygon points="32,102 40,74 46,102" fill="#EAB308" />
+</svg>

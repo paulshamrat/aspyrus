@@ -1,4 +1,14 @@
 node_modules/
 .DS_Store
 *.log
-!localleaf-*.vsix
+*.vsix
+
+__pycache__/
+
+.ruff_cache/
+
+# Preserved older local installers
+.vsix-archive/
+
+# Local Python development environment
+.venv/

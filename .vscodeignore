@@ -13,3 +13,25 @@ test/**
 eslint*
 *.log
 .DS_Store
+**/__pycache__/**
+**/*.py[cod]
+.ruff_cache/**
+.pytest_cache/**
+
+.vsix-archive/**
+*.pdf
+*.docx
+.*-export.json
+.figures-export.json
+**/.*_build/**
+
+# Generated starter reports and private collaboration records
+**/build_report.json
+example/logs/**
+example/feedback/**
+!example/feedback/README.md
+!example/feedback/.gitkeep
+
+# Keep linked public contributor instructions; exclude local Python environments
+!CONTRIBUTING.md
+.venv/**

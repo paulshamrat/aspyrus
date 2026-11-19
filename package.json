@@ -1,9 +1,10 @@
 {
-  "name": "localleaf",
-  "displayName": "LocalLeaf",
+  "name": "aspyrus",
+  "displayName": "Aspyrus",
   "description": "Ultra-lightweight distraction-free LaTeX text editor",
-  "version": "0.2.0",
-  "publisher": "localleaf",
+  "version": "0.6.1",
+  "publisher": "aspyrus",
+  "icon": "assets/icon.png",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -17,31 +18,62 @@
   "contributes": {
     "commands": [
       {
-        "command": "localleaf.open",
-        "title": "Edit Text (LocalLeaf)",
+        "command": "aspyrus.open",
+        "title": "Edit Text (Aspyrus)",
         "icon": "$(edit)"
+      },
+      {
+        "command": "aspyrus.restore",
+        "title": "Aspyrus: Restore Previous Version"
+      },
+      {
+        "command": "aspyrus.newManuscript",
+        "title": "Aspyrus: New Manuscript (main.tex)"
+      },
+      {
+        "command": "aspyrus.newSupplementary",
+        "title": "Aspyrus: New Supplementary (supplementary.tex)"
+      },
+      {
+        "command": "aspyrus.pastePlainText",
+        "title": "Paste as Plain Text"
       }
     ],
     "menus": {
       "editor/title": [
         {
-          "command": "localleaf.open",
+          "command": "aspyrus.open",
           "when": "resourceExtname == .tex",
           "group": "navigation"
         }
       ],
       "explorer/context": [
         {
-          "command": "localleaf.open",
+          "command": "aspyrus.open",
           "when": "resourceExtname == .tex"
+        },
+        {
+          "command": "aspyrus.newManuscript",
+          "when": "explorerResourceIsFolder"
+        },
+        {
+          "command": "aspyrus.newSupplementary",
+          "when": "explorerResourceIsFolder"
+        }
+      ],
+      "webview/context": [
+        {
+          "command": "aspyrus.pastePlainText",
+          "when": "webviewId == 'aspyrus.editor'",
+          "group": "9_cutcopypaste@2"
         }
       ]
     }
   },
   "scripts": {
     "bundle": "esbuild src/webview/editor.js --bundle --outfile=src/webview/bundle.js --format=iife --minify",
-    "test": "node --test test/*.test.js",
-    "package": "npm run bundle && vsce package --no-dependencies --allow-missing-repository"
+    "test": "node --test test/*.test.js && python3 -m unittest discover -s test -p \"*_test.py\"",
+    "package": "npm run bundle && vsce package --no-dependencies --allow-missing-repository --no-rewrite-relative-links"
   },
   "devDependencies": {
     "@vscode/vsce": "^3.9.2",

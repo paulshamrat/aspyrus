@@ -1,0 +1,4 @@
+asset,source_project,source_output
+assets/figures/main/figure1.png,/path/to/example-project,data/01_stage/figures/figure1.png
+assets/figures/supplementary/figure1.png,/path/to/example-project,data/01_stage/figures/supplementary_figure1.png
+assets/tables/supplementary_tables.xlsx,/path/to/example-project,data/01_stage/tables/supplementary_tables.xlsx

@@ -3,54 +3,191 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LocalLeaf Editor</title>
+  <title>Aspyrus Editor</title>
   <link rel="stylesheet" href="{{stylesUri}}">
 </head>
 <body>
   <!-- Top Minimal Toolbar -->
   <header class="toolbar">
     <div class="toolbar-left">
-      <div class="brand">
-        <span class="brand-icon">🍃</span>
-        <span class="brand-name">LocalLeaf</span>
+      <div class="brand" title="Aspyrus" aria-label="Aspyrus">
+        <span class="brand-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="20 18 88 92" fill="none">
+            <polygon points="32,102 46,102 64,30 50,30" fill="#F59E0B" />
+            <polygon points="50,30 64,30 96,102 82,102" fill="#D97706" />
+            <polygon points="50,30 64,30 57,44" fill="#FEF08A" />
+            <polygon points="40,74 44,66 84,66 88,74" fill="#B45309" />
+            <polygon points="40,74 88,74 84,86 36,86" fill="#FBBF24" />
+            <polygon points="32,102 40,74 46,102" fill="#EAB308" />
+          </svg>
+        </span>
       </div>
       <div class="file-info" title="Current LaTeX File">
         <span class="status-dot" id="status-dot"></span>
         <span id="file-name">Loading document...</span>
       </div>
-      <button class="save-btn" id="btn-save" title="Save document to disk (Ctrl+S)">
+      <button class="save-btn" id="btn-save" title="Save document to disk (Ctrl+S) — manual saving">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
           <polyline points="17 21 17 13 7 13 7 21"></polyline>
           <polyline points="7 3 7 8 15 8"></polyline>
         </svg>
       </button>
+      <button class="history-btn" id="btn-undo" title="Undo (Ctrl+Z)" aria-label="Undo">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 14 4 9l5-5"></path>
+          <path d="M4 9h11a5 5 0 0 1 5 5v1"></path>
+        </svg>
+      </button>
+      <button class="history-btn" id="btn-redo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m15 14 5-5-5-5"></path>
+          <path d="M20 9H9a5 5 0 0 0-5 5v1"></path>
+        </svg>
+      </button>
+      <button class="compile-btn" id="btn-compile" title="Save and build PDF, DOCX and figures (Ctrl+Shift+B)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="6 4 20 12 6 20 6 4"></polygon>
+        </svg>
+      </button>
       <span class="status-text" id="status-text">Ready</span>
     </div>
 
+    <div class="toolbar-divider" aria-hidden="true"></div>
+
     <div class="toolbar-center">
-      <!-- Formatting Buttons -->
+      <!-- Direct text emphasis -->
       <div class="btn-group">
-        <button class="tool-btn" id="btn-bold" title="Bold (Ctrl+B)"><strong>B</strong></button>
-        <button class="tool-btn" id="btn-italic" title="Italic (Ctrl+I)"><em>I</em></button>
-        <button class="tool-btn" id="btn-underline" title="Underline (Ctrl+U)"><u>U</u></button>
+        <button class="tool-btn" id="btn-bold" title="Bold (Ctrl+B)" aria-label="Bold"><strong>B</strong></button>
+        <button class="tool-btn" id="btn-italic" title="Italic (Ctrl+I)" aria-label="Italic"><em>I</em></button>
+        <button class="tool-btn" id="btn-superscript" title="Superscript (Ctrl+.)" aria-label="Superscript">x²</button>
+        <button class="tool-btn" id="btn-subscript" title="Subscript (Ctrl+,)" aria-label="Subscript">x₂</button>
       </div>
 
-      <div class="btn-group">
-        <button class="tool-btn" id="btn-h2" title="Section Heading (H2)">H2</button>
-        <button class="tool-btn" id="btn-h3" title="Subsection Heading (H3)">H3</button>
-        <button class="tool-btn" id="btn-list" title="Bullet List">• List</button>
+      <div class="toolbar-divider" aria-hidden="true"></div>
+
+      <div class="toolbar-menu symbol-menu">
+        <button class="tool-btn menu-trigger" id="btn-symbol-menu" title="Insert Symbol (Greek letters & scientific signs)" aria-label="Insert Symbol" aria-haspopup="menu" aria-expanded="false">Ω</button>
+        <div class="toolbar-menu-popover symbol-menu-popover" id="symbol-menu" role="menu" hidden>
+          <div class="symbol-section-title">Greek Letters</div>
+          <div class="symbol-grid">
+            <button type="button" class="symbol-btn" data-symbol="α" title="alpha (α)">α</button>
+            <button type="button" class="symbol-btn" data-symbol="β" title="beta (β)">β</button>
+            <button type="button" class="symbol-btn" data-symbol="γ" title="gamma (γ)">γ</button>
+            <button type="button" class="symbol-btn" data-symbol="δ" title="delta (δ)">δ</button>
+            <button type="button" class="symbol-btn" data-symbol="Δ" title="Delta (Δ)">Δ</button>
+            <button type="button" class="symbol-btn" data-symbol="ε" title="epsilon (ε)">ε</button>
+            <button type="button" class="symbol-btn" data-symbol="θ" title="theta (θ)">θ</button>
+            <button type="button" class="symbol-btn" data-symbol="λ" title="lambda (λ)">λ</button>
+            <button type="button" class="symbol-btn" data-symbol="μ" title="mu (μ)">μ</button>
+            <button type="button" class="symbol-btn" data-symbol="π" title="pi (π)">π</button>
+            <button type="button" class="symbol-btn" data-symbol="σ" title="sigma (σ)">σ</button>
+            <button type="button" class="symbol-btn" data-symbol="φ" title="phi (φ)">φ</button>
+            <button type="button" class="symbol-btn" data-symbol="ω" title="omega (ω)">ω</button>
+            <button type="button" class="symbol-btn" data-symbol="Ω" title="Omega (Ω)">Ω</button>
+          </div>
+          <div class="symbol-section-title">Scientific Signs</div>
+          <div class="symbol-grid">
+            <button type="button" class="symbol-btn" data-symbol="±" title="plus-minus (±)">±</button>
+            <button type="button" class="symbol-btn" data-symbol="×" title="times (×)">×</button>
+            <button type="button" class="symbol-btn" data-symbol="·" title="cdot (·)">·</button>
+            <button type="button" class="symbol-btn" data-symbol="÷" title="divide (÷)">÷</button>
+            <button type="button" class="symbol-btn" data-symbol="Å" title="Angstrom (Å)">Å</button>
+            <button type="button" class="symbol-btn" data-symbol="°" title="degree (°)">°</button>
+            <button type="button" class="symbol-btn" data-symbol="≤" title="less-than or equal (≤)">≤</button>
+            <button type="button" class="symbol-btn" data-symbol="≥" title="greater-than or equal (≥)">≥</button>
+            <button type="button" class="symbol-btn" data-symbol="≈" title="approx (≈)">≈</button>
+            <button type="button" class="symbol-btn" data-symbol="≠" title="not equal (≠)">≠</button>
+            <button type="button" class="symbol-btn" data-symbol="→" title="arrow to (→)">→</button>
+            <button type="button" class="symbol-btn" data-symbol="′" title="prime (′)">′</button>
+            <button type="button" class="symbol-btn" data-symbol="″" title="double prime (″)">″</button>
+          </div>
+        </div>
       </div>
 
-      <!-- Color Presets -->
-      <div class="color-picker-group" title="Text Color Presets">
-        <span class="color-dot black" data-color="black" title="Default (Black)"></span>
-        <span class="color-dot blue" data-color="blue" title="Blue (\textcolor{blue})"></span>
-        <span class="color-dot red" data-color="red" title="Red (\textcolor{red})"></span>
+      <div class="toolbar-divider" aria-hidden="true"></div>
+
+      <div class="toolbar-menu">
+        <button class="tool-btn menu-trigger" id="btn-block-menu" title="Block style" aria-label="Block style" aria-haspopup="menu" aria-expanded="false">¶</button>
+        <div class="toolbar-menu-popover" id="block-menu" role="menu" hidden>
+          <button type="button" data-block="p" role="menuitem">Body text</button>
+          <button type="button" data-block="h2" role="menuitem">Section</button>
+          <button type="button" data-block="h3" role="menuitem">Subsection</button>
+          <button type="button" data-block="list" role="menuitem">Bullet list</button>
+        </div>
+      </div>
+
+      <div class="toolbar-menu">
+        <button class="tool-btn menu-trigger text-color-trigger" id="btn-color-menu" title="Text color" aria-label="Text color" aria-haspopup="menu" aria-expanded="false">A</button>
+        <div class="toolbar-menu-popover" id="color-menu" role="menu" hidden>
+          <button type="button" data-color="black" role="menuitem"><span class="menu-swatch menu-swatch-black"></span>Automatic</button>
+          <button type="button" data-color="blue" role="menuitem"><span class="menu-swatch menu-swatch-blue"></span>Blue</button>
+          <button type="button" data-color="red" role="menuitem"><span class="menu-swatch menu-swatch-red"></span>Red</button>
+        </div>
+      </div>
+
+      <div class="toolbar-menu">
+        <button class="tool-btn menu-trigger" id="btn-highlight-menu" title="Text highlight" aria-label="Text highlight" aria-haspopup="menu" aria-expanded="false">▰</button>
+        <div class="toolbar-menu-popover" id="highlight-menu" role="menu" hidden>
+          <button type="button" data-highlight="yellow" role="menuitem">Yellow highlight</button>
+          <button type="button" data-highlight="remove" role="menuitem">Remove highlight</button>
+        </div>
+      </div>
+
+      <div class="toolbar-divider" aria-hidden="true"></div>
+
+      <div class="btn-group">
+        <button class="tool-btn figure-add-btn" id="btn-add-figure" title="Insert figure (Ctrl+Shift+F)" aria-label="Insert figure">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="2" y="5" width="14" height="14" rx="2"></rect>
+            <circle cx="6.5" cy="9.5" r="1.2"></circle>
+            <path d="m16 15-3.5-3.5-6.5 6.5"></path>
+            <line x1="19" y1="2" x2="19" y2="8"></line>
+            <line x1="16" y1="5" x2="22" y2="5"></line>
+          </svg>
+        </button>
+        <button class="tool-btn table-add-btn" id="btn-add-table" title="Insert table (Ctrl+Shift+T)" aria-label="Insert table">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+            <path d="M3 9h18"></path>
+            <path d="M9 21V9"></path>
+            <path d="M15 21V9"></path>
+          </svg>
+        </button>
       </div>
     </div>
 
-    <div class="toolbar-right"></div>
+    <div class="toolbar-right">
+      <div class="citation-control" title="Citation tools">
+        <button class="tool-btn cite-add-btn" id="btn-add-citation" title="Insert citation (Ctrl+Shift+C)" aria-label="Insert citation">❝+</button>
+        <button class="tool-btn cite-refresh-btn" id="btn-refresh-citations" title="Refresh & renumber references in sequential order" aria-label="Refresh and renumber references">↻</button>
+        <div class="toolbar-menu citation-mode-menu">
+          <button class="tool-btn menu-trigger citation-mode-trigger" id="btn-cite-mode-menu" title="Citation display: numbers" aria-label="Citation display" aria-haspopup="menu" aria-expanded="false">[1]</button>
+          <div class="toolbar-menu-popover citation-menu-popover" id="cite-mode-menu" role="menu" hidden>
+            <button type="button" data-cite-mode="numbers" role="menuitem">[1] Numbers</button>
+            <button type="button" data-cite-mode="keys" role="menuitem">@ BibTeX key</button>
+            <button type="button" data-cite-mode="dois" role="menuitem">DOI</button>
+          </div>
+        </div>
+      </div>
+      <div class="toolbar-divider" aria-hidden="true"></div>
+      <button class="tool-btn theme-toggle-btn" id="btn-theme-toggle" title="Toggle Light / Dark theme (Click to toggle, Shift+Click to sync with VS Code)" aria-label="Toggle Light or Dark theme">
+        <svg class="theme-icon-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <svg class="theme-icon-moon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display: none;">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </button>
+    </div>
   </header>
 
   <!-- Document Paper Canvas -->
@@ -59,6 +196,92 @@
       <!-- Structured LaTeX blocks dynamically rendered here -->
     </div>
   </main>
+
+  <!-- Citation Modal / Search Dialog -->
+  <div id="cite-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title" id="cite-modal-title">Insert Citation</h3>
+        <button class="modal-close-btn" id="btn-close-modal" title="Close (Esc)">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="current-keys-section" style="display: none;">
+          <div class="modal-sublabel">Attached References in Citation:</div>
+          <div class="current-keys-list" id="current-keys-list"></div>
+        </div>
+        <div class="modal-sublabel" id="search-section-label">Search Bibliography (references.bib):</div>
+        <input type="text" id="cite-search-input" class="modal-search-input" placeholder="Type author, title, year, citekey, or DOI..." autocomplete="off">
+        <div class="citation-results-list" id="citation-results-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn secondary" id="btn-cancel-modal">Cancel</button>
+        <button class="modal-btn primary" id="btn-confirm-cite" disabled>Insert Citation</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Figure Insertion Modal Dialog -->
+  <div id="figure-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title" id="figure-modal-title">Insert Figure</h3>
+        <button class="modal-close-btn" id="btn-close-figure-modal" title="Close (Esc)">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-sublabel">Figure Image:</div>
+        <div class="figure-input-row">
+          <input type="text" id="figure-path-input" class="modal-search-input" placeholder="e.g. assets/figures/my_plot.png" autocomplete="off">
+          <button type="button" class="modal-btn secondary" id="btn-browse-image" title="Browse local image from disk">Browse…</button>
+        </div>
+        <div id="figure-project-images-section">
+          <div class="modal-sublabel" style="margin-top: 6px;">Available Project Images:</div>
+          <div class="figure-images-list" id="figure-images-list"></div>
+        </div>
+        <div class="modal-sublabel" style="margin-top: 8px;">Caption:</div>
+        <input type="text" id="figure-caption-input" class="modal-search-input" placeholder="Enter figure caption..." autocomplete="off">
+        <div class="modal-sublabel" style="margin-top: 8px;">LaTeX Label (optional):</div>
+        <input type="text" id="figure-label-input" class="modal-search-input" placeholder="fig:example" autocomplete="off">
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn secondary" id="btn-cancel-figure-modal">Cancel</button>
+        <button class="modal-btn primary" id="btn-confirm-figure" disabled>Insert Figure</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table Insertion Modal Dialog -->
+  <div id="table-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title" id="table-modal-title">Insert Table</h3>
+        <button class="modal-close-btn" id="btn-close-table-modal" title="Close (Esc)">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="table-modal-row">
+          <div class="table-modal-col">
+            <div class="modal-sublabel">Rows:</div>
+            <input type="number" id="table-rows-input" class="modal-search-input" min="1" max="50" value="3" autocomplete="off">
+          </div>
+          <div class="table-modal-col">
+            <div class="modal-sublabel">Columns:</div>
+            <input type="number" id="table-cols-input" class="modal-search-input" min="1" max="20" value="3" autocomplete="off">
+          </div>
+        </div>
+        <div class="modal-sublabel" style="margin-top: 8px;">Caption:</div>
+        <input type="text" id="table-caption-input" class="modal-search-input" placeholder="Enter table caption..." autocomplete="off">
+        <div class="modal-sublabel" style="margin-top: 8px;">LaTeX Label (optional):</div>
+        <input type="text" id="table-label-input" class="modal-search-input" placeholder="tab:example" autocomplete="off">
+        <div class="table-booktabs-option" style="margin-top: 10px; display: flex; align-items: center; gap: 8px;">
+          <input type="checkbox" id="table-booktabs-checkbox" checked style="cursor: pointer;">
+          <label for="table-booktabs-checkbox" style="font-size: 0.9em; cursor: pointer; user-select: none;">Use publication booktabs styling (\toprule, \midrule, \bottomrule)</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn secondary" id="btn-cancel-table-modal">Cancel</button>
+        <button class="modal-btn primary" id="btn-confirm-table">Insert Table</button>
+      </div>
+    </div>
+  </div>
 
   <script src="{{scriptUri}}"></script>
 </body>
