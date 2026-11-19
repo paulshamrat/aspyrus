@@ -10,10 +10,7 @@
 
 ## Read before editing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) and the relevant sections of the
-[development contract](docs/development-contract.md). The contract retains
-mandatory source, rendering, export and review regression requirements; moving
-these rules out of this file does not make them optional.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before editing.
 
 - Source/parser or Canvas work: Citation & Environment Handling Rules and save,
   recovery, clipboard and typography requirements.

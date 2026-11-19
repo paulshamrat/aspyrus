@@ -67,7 +67,7 @@ compiled output; unsupported constructs and complex documents need source editin
 - **Editor:** VS Code 1.85 or later. Compatible editors may differ; verify their
   extension-installation and shortcut support.
 - **Compilation:** Python, Pandoc, Poppler, pdfLaTeX and BibTeX, plus the packages
-  used by your document. See [build setup](docs/building.md#build-dependencies).
+  used by your document.
 - **Platforms:** The build engine uses POSIX file locking; native Windows
   compilation is not supported. Editing does not use that Python build engine.
 - **Documents:** The export path expects self-contained TEX with literal local
@@ -77,12 +77,8 @@ compiled output; unsupported constructs and complex documents need source editin
   Layout, pagination and equation colours/highlights can differ between office
   applications; inspect the intended application before delivery.
 
-## Guides
+## Documentation
 
-- [Authoring, formatting and recovery](docs/authoring.md)
-- [Compilation, dependencies and output layout](docs/building.md)
-- [Citations and bibliography verification](docs/references.md)
-- [Returned Word edits and submission checkpoints](docs/collaboration.md)
 - [Development and contributions](CONTRIBUTING.md)
 
 ## Contributing and licensing

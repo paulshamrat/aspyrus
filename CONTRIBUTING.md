@@ -40,7 +40,7 @@ src/                  Extension hosting, parser, build coordinator, recovery
 example/              Generic manuscript starter and optional workflow scripts
 test/                 JavaScript, native-browser and Python integration tests
 assets/               Extension logo and icons
-docs/                 User guides and detailed development contract
+docs/                 Screenshots and visual assets
 .github/workflows/    CI verification and VSIX artifact generation
 ```
 
@@ -49,8 +49,7 @@ new dependency when the current mechanisms can handle the change.
 
 ## Making a change
 
-Read [AGENTS.md](AGENTS.md) and the relevant
-[development contract](docs/development-contract.md) before editing.
+Read [AGENTS.md](AGENTS.md) before editing.
 Trace the existing flow and affected callers; fix the responsible layer with the
 smallest sufficient change. Preserve source fidelity, confirmed Save, recovery,
 Undo/Redo, accessibility and protected output publication.
