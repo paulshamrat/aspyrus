@@ -62,6 +62,43 @@ Untouched source preservation is a development requirement covered by regression
 checks. Aspyrus is not a complete LaTeX interpreter or a replacement for inspecting
 compiled output; unsupported constructs and complex documents need source editing.
 
+## Manuscript workspace structure
+
+When you work on a paper in your own research workspace (for example,
+`~/research/projects/<my-project>/` or `~/research/manuscripts/<my-paper>/`),
+Aspyrus organizes the manuscript into clean, isolated components:
+
+```text
+<manuscript-workspace>/
+├── .aspyrus.json                   # Project root marker
+├── main/                           # Primary article
+│   ├── main.tex                    # Authoritative LaTeX source
+│   ├── main.pdf                    # Compiled PDF article
+│   └── main.docx                   # Word export with native equations
+├── supplementary/                  # Supplementary Information (SI)
+│   ├── supplementary.tex           # SI LaTeX source
+│   ├── supplementary.pdf           # SI PDF deliverable
+│   └── supplementary.docx          # SI Word export
+├── references/                     # Bibliography database
+│   ├── references.bib              # Consolidated master BibTeX library
+│   ├── dois.txt                    # List of DOIs to fetch and verify
+│   └── bib/                        # Individual verified .bib records
+├── assets/                         # Figures and data tables
+│   ├── figures/
+│   │   ├── main/                   # Figures embedded into main.tex
+│   │   └── supplementary/          # Figures embedded into supplementary.tex
+│   └── tables/                     # Excel / CSV data tables
+├── feedback/                       # Co-author reviews and redline audits
+└── scripts/                        # Automated build and review tools
+    ├── build.py                    # Compiles main, SI, docx, and packages
+    ├── bibgen.py                   # DOI-list fetcher and bibliography auditor
+    └── feedback.py                 # Word change-tracking & feedback auditor
+```
+
+You can bootstrap this structure immediately in any folder by right-clicking in
+the VS Code Explorer and selecting **Aspyrus: New Manuscript (main.tex)**, or
+by copying the ready-to-use template from the [`example/`](example/) directory.
+
 ## Requirements and limits
 
 - **Editor:** VS Code 1.85 or later. Compatible editors may differ; verify their
