@@ -1,6 +1,6 @@
 # Aspyrus
 
-Aspyrus is an ultra-lightweight visual LaTeX prose editor for VS Code and compatible editors such as Antigravity. Read and edit a manuscript in a live visual document canvas while keeping the `.tex` file as the 100% authoritative source.
+Aspyrus is an ultra-lightweight visual LaTeX prose editor for Visual Studio Code and compatible editors. Read and edit a manuscript in a live visual document canvas while keeping the `.tex` file as the 100% authoritative source.
 
 The editor runs completely locally without an external server, Python, or a TeX installation. Optional compilation produces publication-ready PDF, editable Microsoft Word documents (`.docx`), and a figure-only PDF using local build tools.
 
