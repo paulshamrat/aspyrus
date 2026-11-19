@@ -91,7 +91,6 @@ will be added when the release destination is selected.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for tests and release preparation,
 [AGENTS.md](AGENTS.md) for coding-agent instructions, and
 [CHANGELOG.md](CHANGELOG.md) for changes. Aspyrus is [MIT licensed](LICENSE).
-The existing LocalLeaf contributor attribution is retained.
 
 The starter main and supplementary use left-aligned PDF/Word body text with
 retained first-line indentation and 1.5 spacing. TEX uses ragged2e RaggedRight;

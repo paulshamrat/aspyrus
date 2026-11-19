@@ -118,6 +118,6 @@ Issue/PR templates, a code of conduct and a private security-reporting policy ca
 be added when maintainers and reporting channels are established. Do not publish
 placeholder contacts or promise a response process that does not exist.
 
-The [MIT license](LICENSE) retains the original LocalLeaf contributors notice.
-Legacy `.localleaf.json` configuration and associated runtime identifiers remain
-supported; a branding cleanup must not break those compatibility paths.
+The [MIT license](LICENSE) covers Aspyrus and its contributions.
+Legacy configuration files and runtime identifiers remain supported for backward
+compatibility with existing projects.

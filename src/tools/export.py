@@ -377,11 +377,17 @@ def docx(stage: Path, stem: str, mode: str) -> dict:
         pdf_missing = pdf_missing - words(plain_text)
     if pdf_missing:
         try:
-            import fitz
+            try:
+                import pymupdf as fitz
+            except ImportError:
+                import fitz
 
             with fitz.open(stage / f"{stem}.pdf") as doc:
                 mupdf_text = " ".join(page.get_text() for page in doc)
-            pdf_missing = pdf_missing - words(mupdf_text)
+                mupdf_words = " ".join(
+                    w[4] for page in doc for w in page.get_text("words")
+                )
+            pdf_missing = pdf_missing - words(mupdf_text) - words(mupdf_words)
         except Exception:
             pass
     if pdf_missing:
